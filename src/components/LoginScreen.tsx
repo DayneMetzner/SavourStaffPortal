@@ -4,7 +4,7 @@
  */
 
 import React, { useState } from 'react';
-import { Shield, User, LogIn, Sparkles, AlertCircle } from 'lucide-react';
+import { Shield, User, LogIn, Sparkles, AlertCircle, HelpCircle } from 'lucide-react';
 import { loginWithGoogle } from '../utils/googleAuth';
 
 interface LoginScreenProps {
@@ -16,13 +16,13 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
   onLoginSuccess,
   staffProfiles
 }) => {
-  const [activeTab, setActiveTab] = useState<'staff' | 'admin'>('staff');
+  const [showPasscodeForm, setShowPasscodeForm] = useState(false);
   const [adminEmail, setAdminEmail] = useState('dayne@savourfestival.com');
   const [adminCode, setAdminCode] = useState('');
   const [loginError, setLoginError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleGoogleStaffLogin = async () => {
+  const handleGoogleLogin = async () => {
     setIsLoading(true);
     setLoginError(null);
     try {
@@ -106,38 +106,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
           </div>
         </div>
 
-        {/* Tab Selection */}
-        <div className="grid grid-cols-2 gap-2 p-1 bg-slate-100 rounded-2xl">
-          <button
-            onClick={() => {
-              setActiveTab('staff');
-              setLoginError(null);
-            }}
-            className={`py-2 text-xs md:text-sm font-bold rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
-              activeTab === 'staff'
-                ? 'bg-white text-slate-900 shadow-xs'
-                : 'text-slate-500 hover:text-slate-800'
-            }`}
-          >
-            <User size={15} />
-            Staff Sign-In
-          </button>
-          <button
-            onClick={() => {
-              setActiveTab('admin');
-              setLoginError(null);
-            }}
-            className={`py-2 text-xs md:text-sm font-bold rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
-              activeTab === 'admin'
-                ? 'bg-white text-slate-900 shadow-xs'
-                : 'text-slate-500 hover:text-slate-800'
-            }`}
-          >
-            <Shield size={15} />
-            Coordinator HQ
-          </button>
-        </div>
-
         {/* Error Notice */}
         {loginError && (
           <div className="p-4 bg-rose-50 border border-rose-100 rounded-2xl text-rose-800 text-xs md:text-sm leading-relaxed flex items-start gap-2.5">
@@ -146,16 +114,17 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
           </div>
         )}
 
-        {/* Staff Tab Body */}
-        {activeTab === 'staff' && (
-          <div className="space-y-5 animate-slide-down" id="staff-login-tab">
+        {/* Unified Login Area */}
+        <div className="space-y-6">
+          {/* Primary Action: Google Single Sign-On */}
+          <div className="space-y-3">
             <div className="text-center space-y-1">
-              <h2 className="text-sm font-bold text-slate-800">Secure Staff Gateway</h2>
-              <p className="text-xs text-slate-400">Authenticate using your registered Google Account</p>
+              <h2 className="text-sm font-bold text-slate-800">Secure Single Sign-On</h2>
+              <p className="text-xs text-slate-400">For all staff candidates and Coordinator HQ admins</p>
             </div>
 
             <button
-              onClick={handleGoogleStaffLogin}
+              onClick={handleGoogleLogin}
               disabled={isLoading}
               className="w-full py-3.5 bg-slate-900 hover:bg-slate-800 text-white font-semibold text-sm rounded-xl transition-all shadow-md shadow-slate-900/10 cursor-pointer flex items-center justify-center gap-3 active:scale-98 disabled:opacity-50"
             >
@@ -183,57 +152,73 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
               )}
               {isLoading ? 'Connecting...' : 'Sign In with Google'}
             </button>
+          </div>
 
-            <div className="p-4 bg-indigo-50/50 border border-indigo-100/60 rounded-2xl text-[11px] leading-relaxed text-indigo-950 flex gap-2">
-              <Sparkles size={14} className="text-indigo-600 shrink-0 mt-0.5" />
-              <div>
-                <span className="font-bold">First time logging in?</span> Candidates must receive a secure onboarding email from an administrator, complete their profile, and sign the Code of Conduct. Once onboarded, your Google Account becomes active for future login access.
+          {/* Fallback Option Toggle */}
+          <div className="pt-2 text-center border-t border-slate-100">
+            <button
+              type="button"
+              onClick={() => {
+                setShowPasscodeForm(!showPasscodeForm);
+                setLoginError(null);
+              }}
+              className="text-xs text-slate-500 hover:text-slate-800 font-bold flex items-center justify-center gap-1.5 mx-auto cursor-pointer transition-colors"
+            >
+              <Shield size={13} className="text-slate-400" />
+              {showPasscodeForm ? 'Hide Admin Passcode Login' : 'Sign in with Coordinator Passcode fallback'}
+            </button>
+          </div>
+
+          {/* Admin Passcode Fallback Form */}
+          {showPasscodeForm && (
+            <form onSubmit={handleAdminPasscodeLogin} className="space-y-4 pt-2 border-t border-dashed border-slate-200/60 animate-slide-down" id="admin-login-fallback">
+              <div className="text-center space-y-1 mb-2">
+                <h3 className="text-xs font-bold text-slate-700">Coordinator Passcode Fallback</h3>
+                <p className="text-[10px] text-slate-400">Access Festival HQ operations via email & passcode when needed</p>
               </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Administrator Email</label>
+                <input
+                  type="email"
+                  required
+                  placeholder="dayne@savourfestival.com"
+                  value={adminEmail}
+                  onChange={(e) => setAdminEmail(e.target.value)}
+                  className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:border-slate-800 focus:outline-none bg-slate-50/50"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">HQ Operations Access Code</label>
+                <input
+                  type="password"
+                  required
+                  placeholder="••••••••"
+                  value={adminCode}
+                  onChange={(e) => setAdminCode(e.target.value)}
+                  className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:border-slate-800 focus:outline-none bg-slate-50/50 tracking-widest font-bold"
+                />
+              </div>
+
+              <button
+                type="submit"
+                className="w-full py-2 bg-slate-800 hover:bg-slate-700 text-white font-semibold text-xs rounded-lg transition-all shadow-xs cursor-pointer flex items-center justify-center gap-2 mt-3"
+              >
+                <LogIn size={13} />
+                Verify & Launch HQ
+              </button>
+            </form>
+          )}
+
+          {/* Helpful Tips / Info box */}
+          <div className="p-4 bg-indigo-50/40 border border-indigo-100/50 rounded-2xl text-[11px] leading-relaxed text-indigo-950 flex gap-2">
+            <Sparkles size={14} className="text-indigo-600 shrink-0 mt-0.5" />
+            <div>
+              <span className="font-bold">First time logging in?</span> Candidate staff profiles must first be registered via invitation sent by an administrator. Once onboarded, your Google Account becomes active for secure instant access.
             </div>
           </div>
-        )}
-
-        {/* Admin Tab Body */}
-        {activeTab === 'admin' && (
-          <form onSubmit={handleAdminPasscodeLogin} className="space-y-4 animate-slide-down" id="admin-login-tab">
-            <div className="text-center space-y-1 mb-2">
-              <h2 className="text-sm font-bold text-slate-800">Coordinator Portal</h2>
-              <p className="text-xs text-slate-400">Access Festival HQ operations via email & passcode</p>
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-xs font-bold text-slate-600">Administrator Email</label>
-              <input
-                type="email"
-                required
-                placeholder="dayne@savourfestival.com"
-                value={adminEmail}
-                onChange={(e) => setAdminEmail(e.target.value)}
-                className="w-full px-3.5 py-2.5 text-sm border border-slate-200 rounded-xl focus:border-slate-800 focus:outline-none bg-slate-50/50"
-              />
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-xs font-bold text-slate-600">Operations Access Code</label>
-              <input
-                type="password"
-                required
-                placeholder="••••••••"
-                value={adminCode}
-                onChange={(e) => setAdminCode(e.target.value)}
-                className="w-full px-3.5 py-2.5 text-sm border border-slate-200 rounded-xl focus:border-slate-800 focus:outline-none bg-slate-50/50 tracking-widest font-bold"
-              />
-            </div>
-
-            <button
-              type="submit"
-              className="w-full py-3 bg-slate-900 hover:bg-slate-800 text-white font-semibold text-sm rounded-xl transition-all shadow-md shadow-slate-900/10 cursor-pointer flex items-center justify-center gap-2 mt-4"
-            >
-              <LogIn size={16} />
-              Verify & Launch HQ
-            </button>
-          </form>
-        )}
+        </div>
 
         {/* Footer */}
         <div className="text-center text-[10px] text-slate-400 font-medium pt-2">

@@ -92,6 +92,7 @@ export default function App() {
   const [isMigrating, setIsMigrating] = useState<boolean>(false);
   const [currentProfileId, setCurrentProfileId] = useState<string>('');
   const [dbConnected, setDbConnected] = useState<boolean | null>(null);
+  const [dbError, setDbError] = useState<string | null>(null);
 
   // 1. Session & Auth Listener
   useEffect(() => {
@@ -148,15 +149,18 @@ export default function App() {
     if (!isAuthenticated) return;
 
     setDbConnected(null); // Set to loading/checking
+    setDbError(null);
 
     const unsubEvents = subscribeToEvents(
       (data) => {
         setEvents(data);
         setDbConnected(true);
+        setDbError(null);
       },
       (err) => {
         console.error('Events database sync warning:', err);
         setDbConnected(false);
+        setDbError(err.message || String(err));
       }
     );
 
@@ -164,10 +168,12 @@ export default function App() {
       (data) => {
         setShifts(data);
         setDbConnected(true);
+        setDbError(null);
       },
       (err) => {
         console.error('Shifts database sync warning:', err);
         setDbConnected(false);
+        setDbError(err.message || String(err));
       }
     );
 
@@ -180,10 +186,12 @@ export default function App() {
           setStaffProfiles(INITIAL_STAFF);
         }
         setDbConnected(true);
+        setDbError(null);
       },
       (err) => {
         console.error('Staff database sync warning:', err);
         setDbConnected(false);
+        setDbError(err.message || String(err));
       }
     );
 
@@ -191,10 +199,12 @@ export default function App() {
       (data) => {
         setTimeLogs(data);
         setDbConnected(true);
+        setDbError(null);
       },
       (err) => {
         console.error('TimeLogs database sync warning:', err);
         setDbConnected(false);
+        setDbError(err.message || String(err));
       }
     );
 
@@ -202,10 +212,12 @@ export default function App() {
       (data) => {
         setInvitations(data);
         setDbConnected(true);
+        setDbError(null);
       },
       (err) => {
         console.error('Invitations database sync warning:', err);
         setDbConnected(false);
+        setDbError(err.message || String(err));
       }
     );
 
@@ -213,10 +225,12 @@ export default function App() {
       (data) => {
         setInvoices(data);
         setDbConnected(true);
+        setDbError(null);
       },
       (err) => {
         console.error('Invoices database sync warning:', err);
         setDbConnected(false);
+        setDbError(err.message || String(err));
       }
     );
 
@@ -1106,7 +1120,7 @@ export default function App() {
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> Cloud Active
               </span>
             ) : (
-              <span className="ml-1.5 px-2 py-0.5 bg-amber-50 text-amber-700 text-[10px] font-bold rounded flex items-center gap-1" title="Unable to connect to Google Firestore. Falling back to local/localStorage sandbox.">
+              <span className="ml-1.5 px-2 py-0.5 bg-amber-50 text-amber-700 text-[10px] font-bold rounded flex items-center gap-1" title={dbError ? `Unable to connect: ${dbError}. Click 'Sign In with Google' to authenticating correctly, or ensure Firestore is initialized in the savourstaffportal project.` : "Unable to connect to Google Firestore. Falling back to local/localStorage sandbox."}>
                 <span className="w-1.5 h-1.5 rounded-full bg-amber-500" /> Offline / Local
               </span>
             )}
