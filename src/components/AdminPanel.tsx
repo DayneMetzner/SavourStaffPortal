@@ -323,6 +323,20 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     document.body.removeChild(link);
   };
 
+  const handleDownloadOutstandingInvoices = () => {
+    const outstanding = invoices.filter(inv => inv.status === 'approved' || inv.status === 'pending');
+    if (outstanding.length === 0) {
+      alert("There are no outstanding (unpaid or pending approval) invoices to download.");
+      return;
+    }
+
+    outstanding.forEach((invoice, index) => {
+      setTimeout(() => {
+        downloadInvoice(invoice);
+      }, index * 200); // 200ms stagger to prevent browser blocking multiple downloads
+    });
+  };
+
   const handleCreateEvent = (e: React.FormEvent) => {
     e.preventDefault();
     setEventFormError('');
@@ -2510,7 +2524,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 </p>
               </div>
 
-              <div className="flex items-center gap-4 text-xs font-bold">
+              <div className="flex flex-wrap items-center gap-3 text-xs font-bold">
                 <div className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 text-indigo-700 border border-indigo-100 rounded-xl">
                   <span>Approved (Unpaid):</span>
                   <strong className="text-slate-900">
@@ -2523,6 +2537,15 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     £{invoices.filter(inv => inv.status === 'pending').reduce((acc, curr) => acc + curr.grandTotal, 0).toFixed(2)}
                   </strong>
                 </div>
+                <button
+                  type="button"
+                  onClick={handleDownloadOutstandingInvoices}
+                  className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold rounded-xl shadow-md shadow-emerald-600/10 hover:shadow-emerald-600/20 active:scale-95 cursor-pointer flex items-center gap-1.5 transition-all"
+                  title="Download all approved or pending invoices to share with accounts"
+                >
+                  <Download size={13} />
+                  Download Unpaid Invoices
+                </button>
               </div>
             </div>
 

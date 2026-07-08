@@ -91,6 +91,7 @@ export default function App() {
   const [sessionLoading, setSessionLoading] = useState<boolean>(true);
   const [isMigrating, setIsMigrating] = useState<boolean>(false);
   const [currentProfileId, setCurrentProfileId] = useState<string>('');
+  const [dbConnected, setDbConnected] = useState<boolean | null>(null);
 
   // 1. Session & Auth Listener
   useEffect(() => {
@@ -146,34 +147,77 @@ export default function App() {
   useEffect(() => {
     if (!isAuthenticated) return;
 
+    setDbConnected(null); // Set to loading/checking
+
     const unsubEvents = subscribeToEvents(
-      (data) => { if (data.length > 0) setEvents(data); },
-      (err) => console.error('Events database sync warning:', err)
+      (data) => {
+        setEvents(data);
+        setDbConnected(true);
+      },
+      (err) => {
+        console.error('Events database sync warning:', err);
+        setDbConnected(false);
+      }
     );
 
     const unsubShifts = subscribeToShifts(
-      (data) => { if (data.length > 0) setShifts(data); },
-      (err) => console.error('Shifts database sync warning:', err)
+      (data) => {
+        setShifts(data);
+        setDbConnected(true);
+      },
+      (err) => {
+        console.error('Shifts database sync warning:', err);
+        setDbConnected(false);
+      }
     );
 
     const unsubProfiles = subscribeToStaffProfiles(
-      (data) => { if (data.length > 0) setStaffProfiles(data); },
-      (err) => console.error('Staff database sync warning:', err)
+      (data) => {
+        if (data.length > 0) {
+          setStaffProfiles(data);
+        } else {
+          // Fallback to preserve the default Dayne admin if Firestore users table is completely empty
+          setStaffProfiles(INITIAL_STAFF);
+        }
+        setDbConnected(true);
+      },
+      (err) => {
+        console.error('Staff database sync warning:', err);
+        setDbConnected(false);
+      }
     );
 
     const unsubTimeLogs = subscribeToTimeLogs(
-      (data) => { if (data.length > 0) setTimeLogs(data); },
-      (err) => console.error('TimeLogs database sync warning:', err)
+      (data) => {
+        setTimeLogs(data);
+        setDbConnected(true);
+      },
+      (err) => {
+        console.error('TimeLogs database sync warning:', err);
+        setDbConnected(false);
+      }
     );
 
     const unsubInvitations = subscribeToInvitations(
-      (data) => { if (data.length > 0) setInvitations(data); },
-      (err) => console.error('Invitations database sync warning:', err)
+      (data) => {
+        setInvitations(data);
+        setDbConnected(true);
+      },
+      (err) => {
+        console.error('Invitations database sync warning:', err);
+        setDbConnected(false);
+      }
     );
 
     const unsubInvoices = subscribeToInvoices(
-      (data) => { if (data.length > 0) setInvoices(data); },
-      (err) => console.error('Invoices database sync warning:', err)
+      (data) => {
+        setInvoices(data);
+        setDbConnected(true);
+      },
+      (err) => {
+        console.error('Invoices database sync warning:', err);
+        setDbConnected(false);
+      }
     );
 
     return () => {
@@ -1047,6 +1091,23 @@ export default function App() {
             ) : (
               <span className="ml-1.5 px-2 py-0.5 bg-indigo-50 text-indigo-700 text-[10px] font-bold rounded flex items-center gap-1">
                 <User size={10} /> Staff Dashboard
+              </span>
+            )}
+          </div>
+
+          <div className="flex items-center gap-1 text-xs text-slate-500 font-medium mr-2">
+            <span>Database:</span>
+            {dbConnected === null ? (
+              <span className="ml-1.5 px-2 py-0.5 bg-slate-100 text-slate-600 text-[10px] font-bold rounded flex items-center gap-1" title="Establishing cloud connection to Firestore...">
+                <span className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-pulse" /> Connecting...
+              </span>
+            ) : dbConnected ? (
+              <span className="ml-1.5 px-2 py-0.5 bg-emerald-50 text-emerald-700 text-[10px] font-bold rounded flex items-center gap-1" title="Real-time Google Firestore Database is connected & active!">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> Cloud Active
+              </span>
+            ) : (
+              <span className="ml-1.5 px-2 py-0.5 bg-amber-50 text-amber-700 text-[10px] font-bold rounded flex items-center gap-1" title="Unable to connect to Google Firestore. Falling back to local/localStorage sandbox.">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-500" /> Offline / Local
               </span>
             )}
           </div>
