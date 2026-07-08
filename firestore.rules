@@ -17,7 +17,7 @@ service cloud.firestore {
     }
 
     // Check if user is an admin by checking their email (for bootstrap) or their document role field
-    function isAdmin() {
+    function isAdmin(database) {
       return isSignedIn() && (
         request.auth.token.email == 'dayne@savourfestival.com' ||
         (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
@@ -26,7 +26,7 @@ service cloud.firestore {
     }
 
     function isValidId(id) {
-      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_-]+$');
     }
 
     // --- CODES AND PILLARS VALIDATIONS ---
@@ -75,67 +75,67 @@ service cloud.firestore {
         data.staffId is string && data.staffId.size() <= 128 &&
         data.eventId is string && data.eventId.size() <= 128 &&
         data.status in ['pending', 'approved', 'not_approved', 'paid'] &&
-        (data.grandTotal is number || data.grandTotal is decimal);
+        data.grandTotal is number;
     }
 
     // --- COLLECTION RULES ---
 
     // USERS COLLECTION
     match /users/{userId} {
-      allow read: if isSignedIn() && (isOwner(userId) || isAdmin());
+      allow read: if isSignedIn() && (isOwner(userId) || isAdmin(database));
       allow create: if isSignedIn() && isOwner(userId) && isValidStaffProfile(request.resource.data);
       allow update: if isSignedIn() && (
-        isAdmin() || (
+        isAdmin(database) || (
           isOwner(userId) && 
           isValidStaffProfile(request.resource.data) && 
           // Prevent role self-escalation
           request.resource.data.role == resource.data.role
         )
       );
-      allow delete: if isAdmin();
+      allow delete: if isAdmin(database);
     }
 
     // EVENTS COLLECTION
     match /events/{eventId} {
       allow read: if isSignedIn();
-      allow write: if isAdmin();
+      allow write: if isAdmin(database);
     }
 
     // SHIFTS COLLECTION
     match /shifts/{shiftId} {
       allow read: if isSignedIn() && (
-        isAdmin() || 
+        isAdmin(database) || 
         resource.data.allocatedStaffId == request.auth.uid ||
         resource.data.allocatedStaffId == null
       );
-      allow write: if isAdmin();
+      allow write: if isAdmin(database);
     }
 
     // TIMELOGS COLLECTION
     match /timeLogs/{logId} {
-      allow read: if isSignedIn() && (isAdmin() || resource.data.staffId == request.auth.uid);
-      allow create: if isSignedIn() && (isAdmin() || request.resource.data.staffId == request.auth.uid) && isValidTimeLog(request.resource.data);
+      allow read: if isSignedIn() && (isAdmin(database) || resource.data.staffId == request.auth.uid);
+      allow create: if isSignedIn() && (isAdmin(database) || request.resource.data.staffId == request.auth.uid) && isValidTimeLog(request.resource.data);
       allow update: if isSignedIn() && (
-        isAdmin() || (
+        isAdmin(database) || (
           resource.data.staffId == request.auth.uid && 
           request.resource.data.staffId == request.auth.uid && 
           isValidTimeLog(request.resource.data)
         )
       );
-      allow delete: if isAdmin();
+      allow delete: if isAdmin(database);
     }
 
     // INVITATIONS COLLECTION
     match /invitations/{inviteId} {
-      allow read, write: if isAdmin();
+      allow read, write: if isAdmin(database);
     }
 
     // INVOICES COLLECTION
     match /invoices/{invoiceId} {
-      allow read: if isSignedIn() && (isAdmin() || resource.data.staffId == request.auth.uid);
-      allow create: if isSignedIn() && (isAdmin() || request.resource.data.staffId == request.auth.uid) && isValidInvoice(request.resource.data);
+      allow read: if isSignedIn() && (isAdmin(database) || resource.data.staffId == request.auth.uid);
+      allow create: if isSignedIn() && (isAdmin(database) || request.resource.data.staffId == request.auth.uid) && isValidInvoice(request.resource.data);
       allow update: if isSignedIn() && (
-        isAdmin() || (
+        isAdmin(database) || (
           // Staff can update their own invoice if it is still pending
           resource.data.staffId == request.auth.uid &&
           resource.data.status == 'pending' &&
@@ -144,12 +144,12 @@ service cloud.firestore {
           isValidInvoice(request.resource.data)
         )
       );
-      allow delete: if isAdmin();
+      allow delete: if isAdmin(database);
     }
 
     // AUDIT LOGS COLLECTION
     match /auditLogs/{logId} {
-      allow read: if isAdmin();
+      allow read: if isAdmin(database);
       allow create: if isSignedIn();
       allow update, delete: if false;
     }
