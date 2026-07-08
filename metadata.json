@@ -1,0 +1,6 @@
+{
+  "name": "Festival Staff Onboarding",
+  "description": "An onboarding, shift management, time-tracking, and invoicing portal for festival staff and coordinators, supporting customizable daily/hourly rates.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

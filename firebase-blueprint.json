@@ -1,0 +1,177 @@
+{
+  "entities": {
+    "StaffProfile": {
+      "title": "StaffProfile",
+      "description": "Information about registered staff members and administrators",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "fullName": { "type": "string" },
+        "preferredName": { "type": "string" },
+        "phoneNumber": { "type": "string" },
+        "email": { "type": "string" },
+        "pronouns": { "type": "string" },
+        "address": { "type": "string" },
+        "financialDetails": { "type": "object" },
+        "emergencyContact": { "type": "object" },
+        "medicalConditions": { "type": "string" },
+        "seriousAllergies": { "type": "string" },
+        "codeOfConductSigned": { "type": "boolean" },
+        "codeOfConductSignedAt": { "type": "string" },
+        "codeOfConductSignature": { "type": "string" },
+        "role": { "type": "string", "enum": ["staff", "admin"] },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "fullName", "email", "role"]
+    },
+    "FestivalEvent": {
+      "title": "FestivalEvent",
+      "description": "Savour Food Festival events",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "location": { "type": "string" },
+        "startDate": { "type": "string" },
+        "endDate": { "type": "string" },
+        "locations": { "type": "array" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "name", "location", "startDate", "endDate", "locations"]
+    },
+    "Shift": {
+      "title": "Shift",
+      "description": "A single work shift scheduled for an event and zone",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "eventId": { "type": "string" },
+        "locationName": { "type": "string" },
+        "date": { "type": "string" },
+        "startTime": { "type": "string" },
+        "endTime": { "type": "string" },
+        "allocatedStaffId": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "accepted", "denied"] },
+        "unpaidBreakMinutes": { "type": "number" },
+        "payRatePerHour": { "type": "number" },
+        "rateType": { "type": "string", "enum": ["hourly", "day"] },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "eventId", "locationName", "date", "startTime", "endTime"]
+    },
+    "TimeLog": {
+      "title": "TimeLog",
+      "description": "Clock in/out timesheet log, breaks, and location transfers",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "shiftId": { "type": "string" },
+        "staffId": { "type": "string" },
+        "clockInTime": { "type": "string" },
+        "clockOutTime": { "type": "string" },
+        "breaks": { "type": "array" },
+        "locationLogs": { "type": "array" },
+        "feedbackApproval": { "type": "string" },
+        "feedbackRating": { "type": "number" },
+        "feedbackImprovement": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "shiftId", "staffId"]
+    },
+    "Invitation": {
+      "title": "Invitation",
+      "description": "Invites sent to prospective staff",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "email": { "type": "string" },
+        "invitedAt": { "type": "string" },
+        "invitedBy": { "type": "string" },
+        "status": { "type": "string", "enum": ["invited", "registered"] },
+        "onboardingToken": { "type": "string" },
+        "registeredAt": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "email", "invitedAt", "status"]
+    },
+    "Invoice": {
+      "title": "Invoice",
+      "description": "Staff work and expense invoices",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "staffId": { "type": "string" },
+        "staffName": { "type": "string" },
+        "eventId": { "type": "string" },
+        "eventName": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "approved", "not_approved", "paid"] },
+        "contactDetails": { "type": "object" },
+        "financialDetails": { "type": "object" },
+        "shifts": { "type": "array" },
+        "expenses": { "type": "array" },
+        "totalShiftsAmount": { "type": "number" },
+        "totalExpensesAmount": { "type": "number" },
+        "grandTotal": { "type": "number" },
+        "approvedByAdminId": { "type": "string" },
+        "approvedByAdminName": { "type": "string" },
+        "approvedAt": { "type": "string" },
+        "rejectionReason": { "type": "string" },
+        "rejectedAt": { "type": "string" },
+        "paidAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "staffId", "eventId", "status", "grandTotal"]
+    },
+    "AuditLog": {
+      "title": "AuditLog",
+      "description": "Records of sensitive actions for accountability",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "action": { "type": "string" },
+        "actorUserId": { "type": "string" },
+        "actorEmail": { "type": "string" },
+        "targetId": { "type": "string" },
+        "details": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "action", "actorEmail", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "StaffProfile",
+      "description": "Staff and administrator profile records"
+    },
+    "/events/{eventId}": {
+      "schema": "FestivalEvent",
+      "description": "Festival events created by admins"
+    },
+    "/shifts/{shiftId}": {
+      "schema": "Shift",
+      "description": "Individual work shifts"
+    },
+    "/timeLogs/{logId}": {
+      "schema": "TimeLog",
+      "description": "Clock and breakout logs for shifts"
+    },
+    "/invitations/{inviteId}": {
+      "schema": "Invitation",
+      "description": "Invitations sent to prospective staff"
+    },
+    "/invoices/{invoiceId}": {
+      "schema": "Invoice",
+      "description": "Work and expense invoices"
+    },
+    "/auditLogs/{logId}": {
+      "schema": "AuditLog",
+      "description": "Security and activity audit logs"
+    }
+  }
+}

@@ -1,0 +1,157 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // 1. catch-all default-deny gate
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // 2. Global authentication and authorization helpers
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    // Check if user is an admin by checking their email (for bootstrap) or their document role field
+    function isAdmin() {
+      return isSignedIn() && (
+        request.auth.token.email == 'dayne@savourfestival.com' ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin')
+      );
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // --- CODES AND PILLARS VALIDATIONS ---
+
+    // Validates StaffProfile data shapes
+    function isValidStaffProfile(data) {
+      return data.keys().hasAll(['id', 'fullName', 'email', 'role']) &&
+        data.id is string && data.id.size() <= 128 &&
+        data.fullName is string && data.fullName.size() <= 150 &&
+        data.email is string && data.email.size() <= 150 &&
+        data.role in ['staff', 'admin'];
+    }
+
+    // Validates FestivalEvent data shapes
+    function isValidFestivalEvent(data) {
+      return data.keys().hasAll(['id', 'name', 'location', 'startDate', 'endDate', 'locations']) &&
+        data.id is string && data.id.size() <= 128 &&
+        data.name is string && data.name.size() <= 200 &&
+        data.location is string && data.location.size() <= 200 &&
+        data.locations is list;
+    }
+
+    // Validates Shift data shapes
+    function isValidShift(data) {
+      return data.keys().hasAll(['id', 'eventId', 'locationName', 'date', 'startTime', 'endTime']) &&
+        data.id is string && data.id.size() <= 128 &&
+        data.eventId is string && data.eventId.size() <= 128 &&
+        data.locationName is string && data.locationName.size() <= 150 &&
+        data.date is string && data.date.size() <= 12 &&
+        data.startTime is string && data.startTime.size() <= 10 &&
+        data.endTime is string && data.endTime.size() <= 10;
+    }
+
+    // Validates TimeLog data shapes
+    function isValidTimeLog(data) {
+      return data.keys().hasAll(['id', 'shiftId', 'staffId']) &&
+        data.id is string && data.id.size() <= 128 &&
+        data.shiftId is string && data.shiftId.size() <= 128 &&
+        data.staffId is string && data.staffId.size() <= 128;
+    }
+
+    // Validates Invoice data shapes
+    function isValidInvoice(data) {
+      return data.keys().hasAll(['id', 'staffId', 'eventId', 'status', 'grandTotal']) &&
+        data.id is string && data.id.size() <= 128 &&
+        data.staffId is string && data.staffId.size() <= 128 &&
+        data.eventId is string && data.eventId.size() <= 128 &&
+        data.status in ['pending', 'approved', 'not_approved', 'paid'] &&
+        (data.grandTotal is number || data.grandTotal is decimal);
+    }
+
+    // --- COLLECTION RULES ---
+
+    // USERS COLLECTION
+    match /users/{userId} {
+      allow read: if isSignedIn() && (isOwner(userId) || isAdmin());
+      allow create: if isSignedIn() && isOwner(userId) && isValidStaffProfile(request.resource.data);
+      allow update: if isSignedIn() && (
+        isAdmin() || (
+          isOwner(userId) && 
+          isValidStaffProfile(request.resource.data) && 
+          // Prevent role self-escalation
+          request.resource.data.role == resource.data.role
+        )
+      );
+      allow delete: if isAdmin();
+    }
+
+    // EVENTS COLLECTION
+    match /events/{eventId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    // SHIFTS COLLECTION
+    match /shifts/{shiftId} {
+      allow read: if isSignedIn() && (
+        isAdmin() || 
+        resource.data.allocatedStaffId == request.auth.uid ||
+        resource.data.allocatedStaffId == null
+      );
+      allow write: if isAdmin();
+    }
+
+    // TIMELOGS COLLECTION
+    match /timeLogs/{logId} {
+      allow read: if isSignedIn() && (isAdmin() || resource.data.staffId == request.auth.uid);
+      allow create: if isSignedIn() && (isAdmin() || request.resource.data.staffId == request.auth.uid) && isValidTimeLog(request.resource.data);
+      allow update: if isSignedIn() && (
+        isAdmin() || (
+          resource.data.staffId == request.auth.uid && 
+          request.resource.data.staffId == request.auth.uid && 
+          isValidTimeLog(request.resource.data)
+        )
+      );
+      allow delete: if isAdmin();
+    }
+
+    // INVITATIONS COLLECTION
+    match /invitations/{inviteId} {
+      allow read, write: if isAdmin();
+    }
+
+    // INVOICES COLLECTION
+    match /invoices/{invoiceId} {
+      allow read: if isSignedIn() && (isAdmin() || resource.data.staffId == request.auth.uid);
+      allow create: if isSignedIn() && (isAdmin() || request.resource.data.staffId == request.auth.uid) && isValidInvoice(request.resource.data);
+      allow update: if isSignedIn() && (
+        isAdmin() || (
+          // Staff can update their own invoice if it is still pending
+          resource.data.staffId == request.auth.uid &&
+          resource.data.status == 'pending' &&
+          request.resource.data.status == 'pending' &&
+          request.resource.data.staffId == request.auth.uid &&
+          isValidInvoice(request.resource.data)
+        )
+      );
+      allow delete: if isAdmin();
+    }
+
+    // AUDIT LOGS COLLECTION
+    match /auditLogs/{logId} {
+      allow read: if isAdmin();
+      allow create: if isSignedIn();
+      allow update, delete: if false;
+    }
+  }
+}
