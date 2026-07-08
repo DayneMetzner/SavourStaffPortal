@@ -1,1 +1,34 @@
 @import "tailwindcss";
+
+@media print {
+  /* Hide every single element in the viewport */
+  body * {
+    visibility: hidden;
+  }
+  
+  /* Show only the print preview container and its children */
+  .printable-rota-area,
+  .printable-rota-area * {
+    visibility: visible;
+  }
+  
+  /* Frame and format the print layout to take full page width */
+  .printable-rota-area {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    padding: 0 !important;
+    margin: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+    background: white !important;
+    color: black !important;
+  }
+  
+  /* Hide standard interactive UI elements during printing */
+  .no-print {
+    display: none !important;
+    visibility: hidden !important;
+  }
+}

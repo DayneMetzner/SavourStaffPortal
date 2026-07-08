@@ -8,7 +8,7 @@ import { FestivalEvent, StaffProfile, Shift, TimeLog, Invitation, Invoice, Invoi
 import { 
   Calendar, MapPin, Clock, Users, DollarSign, Plus, ArrowRight,
   AlertTriangle, CheckCircle, XCircle, Info, ShieldAlert, Award, Footprints, Layers,
-  Edit, X, Trash2, Shield, UserPlus, Mail, Star, Check, FileText, Download
+  Edit, X, Trash2, Shield, UserPlus, Mail, Star, Check, FileText, Download, Printer
 } from 'lucide-react';
 import { downloadInvoice } from '../utils/invoiceDownload';
 
@@ -94,6 +94,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   // Tabs
   const [activeTab, setActiveTab] = useState<'events' | 'shifts' | 'allocations' | 'payroll' | 'staff' | 'invoices'>('events');
   const [shiftsViewMode, setShiftsViewMode] = useState<'grid' | 'table'>('grid');
+  const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
   
   // Selected state
   const [selectedEventId, setSelectedEventId] = useState<string>(events[0]?.id || '');
@@ -1326,6 +1327,17 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 >
                   <Download size={13} />
                   Export Rota (CSV)
+                </button>
+
+                {/* Print Rota Button */}
+                <button
+                  type="button"
+                  onClick={() => setIsPrintModalOpen(true)}
+                  className="px-3.5 py-2 text-xs font-extrabold bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 border border-emerald-100 shadow-2xs"
+                  title="Open a print-friendly layout of this rota (without shift rates)"
+                >
+                  <Printer size={13} />
+                  Print Rota
                 </button>
 
                 {/* View Toggle */}
@@ -3038,6 +3050,155 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 className="px-5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold rounded-xl shadow-md shadow-indigo-600/10 cursor-pointer"
               >
                 Save Shift Changes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Printable Rota Modal */}
+      {isPrintModalOpen && (
+        <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in no-print" id="print-rota-modal">
+          <div className="bg-white border border-slate-200 rounded-3xl max-w-4xl w-full max-h-[90vh] overflow-hidden shadow-2xl flex flex-col text-slate-800">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-slate-100 p-6 shrink-0">
+              <div>
+                <h3 className="text-base font-extrabold text-slate-900 flex items-center gap-1.5">
+                  <span className="p-1.5 bg-emerald-100 text-emerald-700 rounded-lg"><Printer size={14} /></span>
+                  Print Rota / Schedule View
+                </h3>
+                <p className="text-xs text-slate-500 font-medium mt-0.5">Rates are hidden automatically. Use this layout to print or save as a PDF.</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => window.print()}
+                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs rounded-xl shadow-md shadow-emerald-600/10 cursor-pointer flex items-center gap-1.5 transition-colors"
+                >
+                  <Printer size={13} />
+                  Print Schedule
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsPrintModalOpen(false)}
+                  className="p-2 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 cursor-pointer"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Content / Preview Container */}
+            <div className="p-6 overflow-y-auto flex-1 bg-slate-50/50">
+              {/* This is the container that gets styled by @media print */}
+              <div className="printable-rota-area bg-white border border-slate-150 p-8 rounded-2xl shadow-xs space-y-6">
+                
+                {/* Printout Header */}
+                <div className="border-b border-slate-200 pb-5 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                  <div>
+                    <h1 className="text-xl font-black text-slate-900 tracking-tight">🎪 Savour Food Festival - Staff Rota</h1>
+                    <p className="text-sm font-extrabold text-indigo-600 mt-1">{currentSelectedEvent?.name}</p>
+                    <p className="text-xs text-slate-500 mt-0.5 font-semibold">Location: {currentSelectedEvent?.location}</p>
+                  </div>
+                  <div className="text-left md:text-right font-semibold text-xs text-slate-500">
+                    <div>Printed: {new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</div>
+                    <div className="mt-0.5">Event Dates: {currentSelectedEvent?.startDate} to {currentSelectedEvent?.endDate}</div>
+                  </div>
+                </div>
+
+                {/* Printable Rota Table */}
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse text-xs">
+                    <thead>
+                      <tr className="border-b border-slate-300 text-slate-500 font-bold uppercase tracking-wider text-[10px]">
+                        <th className="py-2.5 pr-3">Date</th>
+                        <th className="py-2.5 px-3">Location / Zone</th>
+                        <th className="py-2.5 px-3">Timings</th>
+                        <th className="py-2.5 px-3">Break</th>
+                        <th className="py-2.5 px-3">Staff Assignment</th>
+                        <th className="py-2.5 pl-3 text-right">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-150">
+                      {currentEventShifts.length === 0 ? (
+                        <tr>
+                          <td colSpan={6} className="py-4 text-center text-slate-400 italic">No shifts built yet for this festival.</td>
+                        </tr>
+                      ) : (
+                        currentEventShifts
+                          .sort((a, b) => {
+                            if (a.date !== b.date) return a.date.localeCompare(b.date);
+                            if (a.startTime !== b.startTime) return a.startTime.localeCompare(b.startTime);
+                            return a.locationName.localeCompare(b.locationName);
+                          })
+                          .map((shift) => {
+                            const staff = staffProfiles.find((p) => p.id === shift.allocatedStaffId);
+                            const dateFormatted = new Date(shift.date).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+                            
+                            return (
+                              <tr key={shift.id} className="text-slate-800 hover:bg-slate-50/50">
+                                <td className="py-3 pr-3 font-bold">{dateFormatted}</td>
+                                <td className="py-3 px-3 font-semibold text-slate-900">{shift.locationName}</td>
+                                <td className="py-3 px-3 font-mono">{shift.startTime} - {shift.endTime}</td>
+                                <td className="py-3 px-3 text-slate-500">
+                                  {shift.unpaidBreakMinutes > 0 ? `${shift.unpaidBreakMinutes}m unpaid` : 'No break'}
+                                </td>
+                                <td className="py-3 px-3">
+                                  {staff ? (
+                                    <div>
+                                      <span className="font-bold text-slate-900">{staff.preferredName}</span>
+                                      <span className="text-slate-500 block text-[10px] mt-0.5 font-mono">{staff.fullName} | {staff.phoneNumber}</span>
+                                    </div>
+                                  ) : (
+                                    <span className="text-amber-600 font-bold italic">Unallocated / Open Slot</span>
+                                  )}
+                                </td>
+                                <td className="py-3 pl-3 text-right font-bold uppercase text-[9px] tracking-wider">
+                                  {staff ? (
+                                    <span className={
+                                      shift.status === 'accepted' ? 'text-emerald-700' :
+                                      shift.status === 'pending' ? 'text-amber-700 animate-pulse' :
+                                      'text-rose-700'
+                                    }>
+                                      {shift.status}
+                                    </span>
+                                  ) : (
+                                    <span className="text-slate-400">Open</span>
+                                  )}
+                                </td>
+                              </tr>
+                            );
+                          })
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Printout Footer */}
+                <div className="pt-5 border-t border-slate-200 flex justify-between items-center text-[10px] text-slate-400 font-medium">
+                  <div>Savour Staff Management Portal</div>
+                  <div>Page 1 of 1</div>
+                </div>
+
+              </div>
+            </div>
+            
+            {/* Modal Footer */}
+            <div className="border-t border-slate-100 p-4 bg-white flex justify-end gap-3 text-xs shrink-0">
+              <button
+                type="button"
+                onClick={() => setIsPrintModalOpen(false)}
+                className="px-4 py-2 text-slate-500 font-bold hover:bg-slate-100 rounded-xl transition-all cursor-pointer"
+              >
+                Close Preview
+              </button>
+              <button
+                type="button"
+                onClick={() => window.print()}
+                className="px-5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold rounded-xl shadow-md shadow-indigo-600/10 cursor-pointer flex items-center gap-1.5"
+              >
+                <Printer size={13} />
+                Print Rota Now
               </button>
             </div>
           </div>

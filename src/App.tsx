@@ -1051,18 +1051,6 @@ export default function App() {
             )}
           </div>
 
-          {currentProfile?.role === 'admin' && (
-            <button
-              onClick={handleMigrateToFirestore}
-              disabled={isMigrating}
-              className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-300 text-white font-bold text-xs rounded-xl shadow-xs transition-all cursor-pointer flex items-center gap-1.5 active:scale-95"
-              title="Migrate all pre-seeded local mock data to Google Firestore"
-            >
-              <CloudLightning size={14} className={isMigrating ? "animate-spin" : ""} />
-              {isMigrating ? "Migrating Data..." : "Migrate Local Data to Firestore"}
-            </button>
-          )}
-
           <button
             onClick={handleLogout}
             className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs rounded-xl shadow-xs transition-all cursor-pointer flex items-center gap-1.5 active:scale-95"
