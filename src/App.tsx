@@ -148,6 +148,14 @@ export default function App() {
   useEffect(() => {
     if (!isAuthenticated) return;
 
+    // Check if we are running in passcode bypass mode (no Google authentication session in Firebase Auth)
+    const isPasscodeMode = sessionStorage.getItem('savour_hq_session') === 'admin' && !googleUser;
+    if (isPasscodeMode) {
+      setDbConnected(false);
+      setDbError("Coordinator Passcode Fallback mode: running securely in offline local sandbox.");
+      return;
+    }
+
     setDbConnected(null); // Set to loading/checking
     setDbError(null);
 
@@ -242,7 +250,7 @@ export default function App() {
       unsubInvitations();
       unsubInvoices();
     };
-  }, [isAuthenticated]);
+  }, [isAuthenticated, googleUser]);
 
   const handleGoogleConnect = async () => {
     try {
@@ -1120,7 +1128,16 @@ export default function App() {
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> Cloud Active
               </span>
             ) : (
-              <span className="ml-1.5 px-2 py-0.5 bg-amber-50 text-amber-700 text-[10px] font-bold rounded flex items-center gap-1" title={dbError ? `Unable to connect: ${dbError}. Click 'Sign In with Google' to authenticating correctly, or ensure Firestore is initialized in the savourstaffportal project.` : "Unable to connect to Google Firestore. Falling back to local/localStorage sandbox."}>
+              <span 
+                className="ml-1.5 px-2 py-0.5 bg-amber-50 text-amber-700 text-[10px] font-bold rounded flex items-center gap-1" 
+                title={
+                  sessionStorage.getItem('savour_hq_session') === 'admin' && !googleUser
+                    ? "Coordinator Passcode Fallback mode: Running securely in offline local sandbox. To connect to Cloud Firestore, sign out and use 'Sign In with Google'."
+                    : dbError
+                      ? `Unable to connect: ${dbError}. Click 'Sign In with Google' to authenticate correctly, or ensure Firestore is initialized in the savourstaffportal project.`
+                      : "Unable to connect to Google Firestore. Falling back to local/localStorage sandbox."
+                }
+              >
                 <span className="w-1.5 h-1.5 rounded-full bg-amber-500" /> Offline / Local
               </span>
             )}
