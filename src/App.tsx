@@ -101,7 +101,7 @@ export default function App() {
     const localSession = sessionStorage.getItem('savour_hq_session');
     if (localSession === 'admin') {
       setIsAuthenticated(true);
-      const adminProfile = staffProfiles.find(p => p.role === 'admin') || INITIAL_STAFF.find(p => p.role === 'admin');
+      const adminProfile = INITIAL_STAFF.find(p => p.role === 'admin');
       if (adminProfile) {
         setCurrentProfileId(adminProfile.id);
       }
@@ -115,15 +115,22 @@ export default function App() {
         const email = user.email?.toLowerCase().trim();
 
         // Dynamically load the newest staff profiles from Firestore to prevent stale local whitelists
-        let currentStaffList = staffProfiles;
+        let currentStaffList: StaffProfile[] = [];
         try {
           const live = await getStaffProfilesFromFirestore();
           if (live && live.length > 0) {
-            setStaffProfiles(live);
-            currentStaffList = live;
+            const hasAdmin = live.some(p => p.role === 'admin' || p.email.toLowerCase() === 'dayne@savourfestival.com');
+            const merged = hasAdmin ? live : [INITIAL_STAFF.find(p => p.role === 'admin') || INITIAL_STAFF[0], ...live];
+            setStaffProfiles(merged);
+            currentStaffList = merged;
+          } else {
+            setStaffProfiles(INITIAL_STAFF);
+            currentStaffList = INITIAL_STAFF;
           }
         } catch (e) {
           console.error("Auth state change: could not query Firestore 'users' whitelists:", e);
+          setStaffProfiles(INITIAL_STAFF);
+          currentStaffList = INITIAL_STAFF;
         }
 
         if (email === 'dayne@savourfestival.com') {
@@ -156,7 +163,7 @@ export default function App() {
     });
 
     return () => unsubscribe();
-  }, [staffProfiles]);
+  }, []);
 
   // 2. Real-time Firestore synchronizer
   useEffect(() => {
@@ -202,7 +209,13 @@ export default function App() {
     const unsubProfiles = subscribeToStaffProfiles(
       (data) => {
         if (data.length > 0) {
-          setStaffProfiles(data);
+          const hasAdmin = data.some(p => p.role === 'admin' || p.email.toLowerCase() === 'dayne@savourfestival.com');
+          if (!hasAdmin) {
+            const defaultAdmin = INITIAL_STAFF.find(p => p.role === 'admin') || INITIAL_STAFF[0];
+            setStaffProfiles([defaultAdmin, ...data]);
+          } else {
+            setStaffProfiles(data);
+          }
         } else {
           // Fallback to preserve the default Dayne admin if Firestore users table is completely empty
           setStaffProfiles(INITIAL_STAFF);

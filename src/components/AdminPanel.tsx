@@ -2335,17 +2335,19 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                       <div className="p-4 bg-slate-50/50 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                         <div className="flex items-center gap-3">
                           <div className="h-10 w-10 bg-slate-200 text-slate-700 rounded-xl flex items-center justify-center font-bold text-sm">
-                            {p.fullName.split(' ').map(n => n[0]).join('')}
+                            {(p.fullName || 'Anonymous').split(' ').filter(Boolean).map(n => n[0]).join('')}
                           </div>
                           <div>
                             <div className="flex items-center gap-1.5 flex-wrap">
-                              <h5 className="font-bold text-slate-950 text-sm">{p.fullName}</h5>
+                              <h5 className="font-bold text-slate-950 text-sm">{p.fullName || 'Anonymous'}</h5>
                               {p.preferredName && p.preferredName !== p.fullName && (
                                 <span className="text-xs text-slate-500 font-medium">({p.preferredName})</span>
                               )}
-                              <span className="text-[10px] text-slate-400 font-bold px-1.5 py-0.2 bg-slate-100 rounded">
-                                {p.pronouns}
-                              </span>
+                              {p.pronouns && (
+                                <span className="text-[10px] text-slate-400 font-bold px-1.5 py-0.2 bg-slate-100 rounded">
+                                  {p.pronouns}
+                                </span>
+                              )}
                               {p.role === 'admin' && (
                                 <span className="text-[10px] font-extrabold bg-slate-900 text-white px-1.5 py-0.2 rounded uppercase tracking-wider">
                                   Coordinator
