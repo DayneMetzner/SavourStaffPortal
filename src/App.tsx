@@ -52,7 +52,8 @@ import {
   updateInvoiceStatusInFirestore,
   updateEventInFirestore,
   updateShiftInFirestore,
-  deleteShiftFromFirestore
+  deleteShiftFromFirestore,
+  getStaffProfilesFromFirestore
 } from './utils/firestoreData';
 
 export default function App() {
@@ -112,15 +113,28 @@ export default function App() {
       if (user) {
         setGoogleUser(user);
         const email = user.email?.toLowerCase().trim();
+
+        // Dynamically load the newest staff profiles from Firestore to prevent stale local whitelists
+        let currentStaffList = staffProfiles;
+        try {
+          const live = await getStaffProfilesFromFirestore();
+          if (live && live.length > 0) {
+            setStaffProfiles(live);
+            currentStaffList = live;
+          }
+        } catch (e) {
+          console.error("Auth state change: could not query Firestore 'users' whitelists:", e);
+        }
+
         if (email === 'dayne@savourfestival.com') {
           setIsAuthenticated(true);
-          const adminProfile = staffProfiles.find(p => p.role === 'admin') || INITIAL_STAFF.find(p => p.role === 'admin');
+          const adminProfile = currentStaffList.find(p => p.role === 'admin') || INITIAL_STAFF.find(p => p.role === 'admin');
           if (adminProfile) {
             setCurrentProfileId(adminProfile.id);
           }
         } else {
           // Check if registered staff member
-          const matched = staffProfiles.find(p => p.email.toLowerCase().trim() === email);
+          const matched = currentStaffList.find(p => p.email.toLowerCase().trim() === email);
           if (matched) {
             setIsAuthenticated(true);
             setCurrentProfileId(matched.id);
@@ -359,9 +373,13 @@ export default function App() {
       ...newEventData,
       id: `evt-${Date.now()}`
     };
-    const updated = [...events, newEvent];
-    setEvents(updated);
-    saveData('fest_events', updated);
+    setEvents((prevEvents) => {
+      const existingIds = new Set(prevEvents.map(e => e.id));
+      if (existingIds.has(newEvent.id)) return prevEvents;
+      const updated = [...prevEvents, newEvent];
+      saveData('fest_events', updated);
+      return updated;
+    });
     await createEventInFirestore(newEvent);
   };
 
@@ -386,7 +404,10 @@ export default function App() {
       await createShiftInFirestore(newShift);
     }
     setShifts((prevShifts) => {
-      const updated = [...prevShifts, ...newShifts];
+      const existingIds = new Set(prevShifts.map(s => s.id));
+      const filteredNew = newShifts.filter(s => !existingIds.has(s.id));
+      if (filteredNew.length === 0) return prevShifts;
+      const updated = [...prevShifts, ...filteredNew];
       saveData('fest_shifts', updated);
       return updated;
     });

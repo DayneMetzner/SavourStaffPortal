@@ -52,6 +52,21 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
       setFormError('Please fill in all required fields marked with an asterisk (*).');
       return;
     }
+
+    // Format validation for UK bank details (6-digit sort code, 8-digit account number)
+    const cleanSortCode = sortCode.replace(/[^0-9]/g, '');
+    const cleanAccountNumber = accountNumber.replace(/[^0-9]/g, '');
+
+    if (cleanSortCode.length !== 6) {
+      setFormError('Please enter a valid UK Sort Code (must be exactly 6 digits, e.g. 20-30-40 or 203040).');
+      return;
+    }
+
+    if (cleanAccountNumber.length !== 8) {
+      setFormError('Please enter a valid UK Account Number (must be exactly 8 digits, e.g. 12345678).');
+      return;
+    }
+
     setFormError('');
     setStep(2);
   };
@@ -219,9 +234,14 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
 
           {/* Section 2: Financial Details */}
           <div className="space-y-4 pt-4 border-t border-slate-700">
-            <h3 className="text-xs uppercase tracking-widest font-extrabold text-indigo-400 flex items-center gap-2">
-              <CreditCard size={14} /> Payout Banking Details
-            </h3>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <h3 className="text-xs uppercase tracking-widest font-extrabold text-indigo-400 flex items-center gap-2">
+                <CreditCard size={14} /> Payout Banking Details
+              </h3>
+              <span className="text-[10px] bg-amber-400/10 text-amber-400 font-extrabold px-2 py-0.5 rounded border border-amber-400/25 uppercase tracking-wider">
+                Only UK Bank Accounts Accepted
+              </span>
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-1">
                 <label className="text-xs font-bold text-slate-300">Bank Name *</label>
@@ -257,6 +277,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
                   onChange={(e) => setSortCode(e.target.value)}
                   className="w-full px-3.5 py-2 text-sm bg-slate-900 border border-slate-700 rounded-xl text-slate-100 placeholder-slate-600 focus:outline-none focus:border-indigo-500"
                 />
+                <span className="text-[10px] text-slate-400 block font-semibold">Exactly 6 digits (e.g. 20-30-40)</span>
               </div>
 
               <div className="space-y-1">
@@ -269,6 +290,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
                   onChange={(e) => setAccountNumber(e.target.value)}
                   className="w-full px-3.5 py-2 text-sm bg-slate-900 border border-slate-700 rounded-xl text-slate-100 placeholder-slate-600 focus:outline-none focus:border-indigo-500"
                 />
+                <span className="text-[10px] text-slate-400 block font-semibold">Exactly 8 digits (e.g. 12345678)</span>
               </div>
             </div>
           </div>

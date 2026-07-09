@@ -39,8 +39,20 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
           return;
         }
 
+        // Dynamically import and fetch up-to-date staff profiles from Firestore
+        let currentProfilesList = staffProfiles;
+        try {
+          const { getStaffProfilesFromFirestore } = await import('../utils/firestoreData');
+          const live = await getStaffProfilesFromFirestore();
+          if (live && live.length > 0) {
+            currentProfilesList = live;
+          }
+        } catch (dbErr) {
+          console.error("Login Screen: failed to pull live whitelists from Firestore:", dbErr);
+        }
+
         // Check if registered in staff profiles
-        const matchedProfile = staffProfiles.find(
+        const matchedProfile = currentProfilesList.find(
           (p) => p.email.toLowerCase().trim() === authenticatedEmail
         );
 

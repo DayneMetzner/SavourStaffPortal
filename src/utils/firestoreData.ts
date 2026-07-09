@@ -411,3 +411,19 @@ export async function updateEventInFirestore(event: FestivalEvent) {
     handleFirestoreError(error, OperationType.WRITE, path);
   }
 }
+
+export async function getStaffProfilesFromFirestore(): Promise<StaffProfile[]> {
+  const path = 'users';
+  try {
+    const snapshot = await getDocs(collection(db, path));
+    const list: StaffProfile[] = [];
+    snapshot.forEach((docSnap) => {
+      list.push(docSnap.data() as StaffProfile);
+    });
+    return list;
+  } catch (error) {
+    handleFirestoreError(error, OperationType.LIST, path);
+    return [];
+  }
+}
+

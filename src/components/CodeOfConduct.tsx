@@ -49,10 +49,24 @@ export const CodeOfConduct: React.FC<CodeOfConductProps> = ({
 }) => {
   const [signatureName, setSignatureName] = useState(currentSignature);
   const [hasRead, setHasRead] = useState(false);
+  const [scrolledToBottom, setScrolledToBottom] = useState(false);
   const [error, setError] = useState('');
+
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const target = e.currentTarget;
+    // Check if user has scrolled to within 15px of the bottom
+    const isAtBottom = target.scrollHeight - target.scrollTop <= target.clientHeight + 15;
+    if (isAtBottom) {
+      setScrolledToBottom(true);
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!scrolledToBottom) {
+      setError('You must scroll to the bottom of the Code of Conduct document before signing.');
+      return;
+    }
     if (!hasRead) {
       setError('You must confirm that you have read and understood the entire document.');
       return;
@@ -91,7 +105,10 @@ export const CodeOfConduct: React.FC<CodeOfConductProps> = ({
       </div>
 
       <div className="p-6">
-        <div className="bg-slate-900 text-slate-200 p-5 rounded-xl font-mono text-xs leading-relaxed max-h-72 overflow-y-auto mb-6 border border-slate-800">
+        <div 
+          onScroll={handleScroll}
+          className="bg-slate-900 text-slate-200 p-5 rounded-xl font-mono text-xs leading-relaxed max-h-72 overflow-y-auto mb-4 border border-slate-800"
+        >
           <pre className="whitespace-pre-wrap font-sans text-sm">{CODE_OF_CONDUCT_TEXT}</pre>
         </div>
 
@@ -117,12 +134,20 @@ export const CodeOfConduct: React.FC<CodeOfConductProps> = ({
               </div>
             )}
 
-            <label className="flex items-start gap-3 cursor-pointer group p-3 hover:bg-slate-50 rounded-lg transition-colors border border-transparent hover:border-slate-100">
+            {!scrolledToBottom && (
+              <div className="flex items-center gap-1.5 p-2 bg-amber-50 text-amber-800 rounded-xl text-[11px] font-bold border border-amber-200/50">
+                <AlertCircle size={14} className="text-amber-600" />
+                Please scroll to the very bottom of the Code of Conduct document to unlock the checkbox.
+              </div>
+            )}
+
+            <label className={`flex items-start gap-3 cursor-pointer group p-3 hover:bg-slate-50 rounded-lg transition-colors border border-transparent hover:border-slate-100 ${!scrolledToBottom ? 'opacity-50 cursor-not-allowed' : ''}`}>
               <input
                 type="checkbox"
                 checked={hasRead}
+                disabled={!scrolledToBottom}
                 onChange={(e) => setHasRead(e.target.checked)}
-                className="mt-1 w-4 h-4 text-slate-950 border-slate-300 rounded focus:ring-slate-950 focus:ring-offset-2"
+                className={`mt-1 w-4 h-4 rounded border-slate-300 focus:ring-slate-950 focus:ring-offset-2 ${!scrolledToBottom ? 'opacity-40 cursor-not-allowed text-slate-300' : 'text-slate-950 cursor-pointer'}`}
               />
               <span className="text-sm text-slate-600 leading-normal select-none group-hover:text-slate-800">
                 I have read the Code of Conduct document in full, understand the expectations of my role, and agree to adhere strictly to all terms, including the sobriety, safety, and punctuality policies.
