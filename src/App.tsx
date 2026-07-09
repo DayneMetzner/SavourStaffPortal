@@ -17,7 +17,7 @@ import { LoginScreen } from './components/LoginScreen';
 import { AdminPanel } from './components/AdminPanel';
 import { StaffPanel } from './components/StaffPanel';
 import { OnboardingWizard } from './components/OnboardingWizard';
-import { Shield, User, Users, ClipboardList, Info, Sparkles, Mail, Check, X, ShieldAlert, Heart, LogOut, CloudLightning } from 'lucide-react';
+import { Shield, User, Users, ClipboardList, Info, Sparkles, Mail, Check, X, ShieldAlert, Heart, LogOut, CloudLightning, Copy, ExternalLink } from 'lucide-react';
 import { 
   initGoogleAuth, 
   loginWithGoogle, 
@@ -368,7 +368,13 @@ export default function App() {
     to: string;
     subject: string;
     body: string;
+    isRealSent?: boolean;
+    sendError?: string;
+    onboardingLink?: string;
   } | null>(null);
+
+  const [linkCopied, setLinkCopied] = useState(false);
+  const [bodyCopied, setBodyCopied] = useState(false);
 
   const [onboardingEmail, setOnboardingEmail] = useState<string | null>(() => {
     try {
@@ -868,11 +874,62 @@ export default function App() {
 
     // Calculate current URL for testing convenience
     const currentURL = window.location.origin + window.location.pathname;
+    const onboardingLink = `${currentURL}?onboardEmail=${encodeURIComponent(cleanEmail)}`;
+    const emailSubject = '🎪 Join Savour Food Festival Staff Team - Onboarding Link';
+    const plainTextBody = `Hi there!\n\nYou have been invited to register as a staff member on the Savour Food Festival Portal.\n\nPlease click the link below to set up your billing details, emergency contact, medical declarations, and sign the official Code of Conduct:\n\n${onboardingLink}\n\nBest regards,\nSavour Operations Team`;
+
+    const htmlContent = `
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 16px; background-color: #ffffff;">
+        <div style="text-align: center; margin-bottom: 24px;">
+          <span style="font-size: 40px;">🎪</span>
+          <h2 style="color: #0f172a; margin-top: 12px; margin-bottom: 4px; font-weight: 800; font-size: 24px;">Savour Food Festival</h2>
+          <p style="color: #64748b; font-size: 14px; margin: 0;">Operations & Staff Onboarding Portal</p>
+        </div>
+        
+        <div style="color: #334155; font-size: 15px; line-height: 1.6; margin-bottom: 24px;">
+          <p>Hi there,</p>
+          <p>You have been invited to register as an official staff member on the <strong>Savour Food Festival Portal</strong>.</p>
+          <p>Please click the button below to set up your profile, complete medical and emergency contact declarations, and sign the mandatory Code of Conduct:</p>
+          
+          <div style="text-align: center; margin: 32px 0;">
+            <a href="${onboardingLink}" target="_blank" style="background-color: #4f46e5; color: #ffffff; padding: 14px 28px; text-decoration: none; border-radius: 12px; font-weight: bold; font-size: 15px; display: inline-block; box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.2); text-align: center;">
+              Complete Staff Registration
+            </a>
+          </div>
+          
+          <p style="font-size: 13px; color: #64748b; background-color: #f8fafc; padding: 12px; border-radius: 8px; border: 1px dashed #e2e8f0; word-break: break-all;">
+            <strong>Onboarding Link:</strong><br/>
+            <a href="${onboardingLink}" target="_blank" style="color: #4f46e5; text-decoration: underline;">${onboardingLink}</a>
+          </p>
+        </div>
+        
+        <hr style="border: 0; border-top: 1px solid #f1f5f9; margin-bottom: 20px;" />
+        <p style="font-size: 12px; color: #94a3b8; text-align: center; margin: 0;">
+          This invitation was sent by Savour Operations Team.
+        </p>
+      </div>
+    `;
+
+    let isRealSent = false;
+    let sendError = undefined;
+
+    if (googleToken) {
+      try {
+        await sendGmailNotification(googleToken, cleanEmail, emailSubject, htmlContent);
+        isRealSent = true;
+      } catch (err: any) {
+        console.error('Gmail send failed:', err);
+        sendError = err.message || String(err);
+      }
+    }
 
     setLatestSimulatedEmail({
       to: cleanEmail,
-      subject: '🎪 Join Savour Food Festival Staff Team - Onboarding Link',
-      body: `Hi there!\n\nYou have been invited to register as a staff member on the Savour Food Festival Portal.\n\nPlease click the link below to set up your billing details, emergency contact, medical declarations, and sign the official Code of Conduct:\n\n${currentURL}?onboardEmail=${encodeURIComponent(cleanEmail)}\n\nBest regards,\nSavour Festival Operations Team`
+      subject: emailSubject,
+      body: plainTextBody,
+      isRealSent,
+      sendError,
+      onboardingLink
     });
 
     await createInvitationInFirestore({
@@ -895,7 +952,7 @@ export default function App() {
     await deleteInvitationFromFirestore(cleanEmail);
   };
 
-  const handleResendInvitation = (email: string) => {
+  const handleResendInvitation = async (email: string) => {
     const cleanEmail = email.trim().toLowerCase();
     const inv = invitations.find(i => i.email.toLowerCase() === cleanEmail);
     if (!inv) {
@@ -903,10 +960,62 @@ export default function App() {
       return;
     }
     const currentURL = window.location.origin + window.location.pathname;
+    const onboardingLink = `${currentURL}?onboardEmail=${encodeURIComponent(cleanEmail)}`;
+    const emailSubject = '🎪 Join Savour Food Festival Staff Team - Onboarding Link';
+    const plainTextBody = `Hi there!\n\nYou have been invited to register as a staff member on the Savour Food Festival Portal.\n\nPlease click the link below to set up your billing details, emergency contact, medical declarations, and sign the official Code of Conduct:\n\n${onboardingLink}\n\nBest regards,\nSavour Operations Team`;
+
+    const htmlContent = `
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 16px; background-color: #ffffff;">
+        <div style="text-align: center; margin-bottom: 24px;">
+          <span style="font-size: 40px;">🎪</span>
+          <h2 style="color: #0f172a; margin-top: 12px; margin-bottom: 4px; font-weight: 800; font-size: 24px;">Savour Food Festival</h2>
+          <p style="color: #64748b; font-size: 14px; margin: 0;">Operations & Staff Onboarding Portal</p>
+        </div>
+        
+        <div style="color: #334155; font-size: 15px; line-height: 1.6; margin-bottom: 24px;">
+          <p>Hi there,</p>
+          <p>You have been invited to register as an official staff member on the <strong>Savour Food Festival Portal</strong>.</p>
+          <p>Please click the button below to set up your profile, complete medical and emergency contact declarations, and sign the mandatory Code of Conduct:</p>
+          
+          <div style="text-align: center; margin: 32px 0;">
+            <a href="${onboardingLink}" target="_blank" style="background-color: #4f46e5; color: #ffffff; padding: 14px 28px; text-decoration: none; border-radius: 12px; font-weight: bold; font-size: 15px; display: inline-block; box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.2); text-align: center;">
+              Complete Staff Registration
+            </a>
+          </div>
+          
+          <p style="font-size: 13px; color: #64748b; background-color: #f8fafc; padding: 12px; border-radius: 8px; border: 1px dashed #e2e8f0; word-break: break-all;">
+            <strong>Onboarding Link:</strong><br/>
+            <a href="${onboardingLink}" target="_blank" style="color: #4f46e5; text-decoration: underline;">${onboardingLink}</a>
+          </p>
+        </div>
+        
+        <hr style="border: 0; border-top: 1px solid #f1f5f9; margin-bottom: 20px;" />
+        <p style="font-size: 12px; color: #94a3b8; text-align: center; margin: 0;">
+          This invitation was sent by Savour Operations Team.
+        </p>
+      </div>
+    `;
+
+    let isRealSent = false;
+    let sendError = undefined;
+
+    if (googleToken) {
+      try {
+        await sendGmailNotification(googleToken, cleanEmail, emailSubject, htmlContent);
+        isRealSent = true;
+      } catch (err: any) {
+        console.error('Gmail resend failed:', err);
+        sendError = err.message || String(err);
+      }
+    }
+
     setLatestSimulatedEmail({
       to: cleanEmail,
-      subject: '🎪 Join Savour Food Festival Staff Team - Onboarding Link',
-      body: `Hi there!\n\nYou have been invited to register as a staff member on the Savour Food Festival Portal.\n\nPlease click the link below to set up your billing details, emergency contact, medical declarations, and sign the official Code of Conduct:\n\n${currentURL}?onboardEmail=${encodeURIComponent(cleanEmail)}\n\nBest regards,\nSavour Festival Operations Team`
+      subject: emailSubject,
+      body: plainTextBody,
+      isRealSent,
+      sendError,
+      onboardingLink
     });
   };
 
@@ -1282,67 +1391,163 @@ export default function App() {
         <p>© 2026 Savour Food Festival. All staff activities logged on UTC timezone. Securely audited platform.</p>
       </footer>
 
-      {/* Simulated Email Pop-up Overlay */}
-      {latestSimulatedEmail && (
-        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in" id="simulated-email-modal">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl max-w-lg w-full overflow-hidden shadow-2xl text-slate-200">
-            {/* Header */}
-            <div className="bg-slate-950 px-6 py-4 border-b border-slate-800 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="p-1.5 bg-indigo-600/20 text-indigo-400 rounded-lg">
-                  <Mail size={16} />
+      {/* Onboarding On-screen Dispatch Hub Modal */}
+      {latestSimulatedEmail && (() => {
+        const mailtoUrl = `mailto:${latestSimulatedEmail.to}?subject=${encodeURIComponent(latestSimulatedEmail.subject)}&body=${encodeURIComponent(latestSimulatedEmail.body)}`;
+        
+        return (
+          <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in" id="simulated-email-modal">
+            <div className="bg-slate-900 border border-slate-800 rounded-3xl max-w-xl w-full overflow-hidden shadow-2xl text-slate-200">
+              {/* Header */}
+              <div className="bg-slate-950 px-6 py-4 border-b border-slate-800 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="p-1.5 bg-indigo-600/20 text-indigo-400 rounded-lg">
+                    <Mail size={16} />
+                  </span>
+                  <span className="text-xs font-bold text-slate-300 tracking-wider uppercase">Staff Onboarding Dispatch Hub</span>
+                </div>
+                <button 
+                  onClick={() => setLatestSimulatedEmail(null)}
+                  className="p-1 hover:bg-slate-800 text-slate-400 hover:text-white rounded-lg transition-colors cursor-pointer"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              {/* Content */}
+              <div className="p-6 space-y-4 text-xs font-medium text-slate-400">
+                {/* Integration status alert */}
+                {latestSimulatedEmail.isRealSent ? (
+                  <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-emerald-400 text-xs flex items-start gap-2.5 animate-fade-in">
+                    <Check className="shrink-0 mt-0.5 text-emerald-400" size={16} />
+                    <div>
+                      <span className="font-bold block text-slate-200">Live Email Dispatched Successfully!</span>
+                      The official onboarding invitation email was successfully sent to <strong className="font-mono text-slate-100">{latestSimulatedEmail.to}</strong> using your connected Google Workspace account.
+                    </div>
+                  </div>
+                ) : latestSimulatedEmail.sendError ? (
+                  <div className="p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl text-rose-400 text-xs flex items-start gap-2.5 animate-fade-in">
+                    <X className="shrink-0 mt-0.5 text-rose-400" size={16} />
+                    <div>
+                      <span className="font-bold block text-slate-200">Gmail Send Failed</span>
+                      Could not send automatically via Gmail API: <span className="font-mono text-slate-300">{latestSimulatedEmail.sendError}</span>. 
+                      You can still send it manually using the direct delivery and copy tools below.
+                    </div>
+                  </div>
+                ) : googleToken ? (
+                  <div className="p-3 bg-indigo-500/10 border border-indigo-500/20 rounded-xl text-indigo-400 text-xs flex items-start gap-2.5">
+                    <CloudLightning className="shrink-0 mt-0.5 text-indigo-400 animate-pulse" size={16} />
+                    <div>
+                      <span className="font-bold block text-slate-200">Attempting Live Delivery...</span>
+                      Dispatching the live onboarding email to <span className="font-mono">{latestSimulatedEmail.to}</span>...
+                    </div>
+                  </div>
+                ) : (
+                  <div className="p-3 bg-slate-800/60 border border-slate-700/50 rounded-xl text-slate-300 text-xs flex items-start gap-2.5">
+                    <Info className="shrink-0 mt-0.5 text-indigo-400" size={16} />
+                    <div>
+                      <span className="font-bold block text-slate-200">Google Workspace Not Connected</span>
+                      Connect Google Workspace in the administrator panel to automate actual emails. In the meantime, use the quick actions below to send it instantly.
+                    </div>
+                  </div>
+                )}
+
+                {/* Recipient details */}
+                <div className="grid grid-cols-[60px_1fr] gap-1 pb-3 border-b border-slate-800">
+                  <span className="font-semibold text-slate-500">To:</span>
+                  <span className="text-slate-200 font-mono">{latestSimulatedEmail.to}</span>
+                  <span className="font-semibold text-slate-500">Subject:</span>
+                  <span className="text-slate-100 font-bold">{latestSimulatedEmail.subject}</span>
+                </div>
+
+                {/* Preview email body */}
+                <div className="space-y-1.5">
+                  <span className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Email Text Preview</span>
+                  <div className="bg-slate-950/80 p-4 rounded-xl border border-slate-800 font-mono text-slate-300 leading-relaxed whitespace-pre-wrap max-h-40 overflow-y-auto">
+                    {latestSimulatedEmail.body}
+                  </div>
+                </div>
+
+                {/* Direct Delivery Actions */}
+                <div className="pt-2 space-y-2">
+                  <span className="text-[10px] uppercase font-bold text-slate-500 tracking-wider block">Direct Delivery & Copy Actions</span>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    <a
+                      href={mailtoUrl}
+                      className="px-3 py-2.5 bg-indigo-600 hover:bg-indigo-500 active:scale-98 text-white font-bold rounded-xl text-center flex items-center justify-center gap-1.5 transition-all shadow-lg shadow-indigo-600/10 cursor-pointer"
+                    >
+                      <ExternalLink size={14} />
+                      <span>Send via Mail App</span>
+                    </a>
+                    
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (latestSimulatedEmail.onboardingLink) {
+                          navigator.clipboard.writeText(latestSimulatedEmail.onboardingLink);
+                          setLinkCopied(true);
+                          setTimeout(() => setLinkCopied(false), 2000);
+                        }
+                      }}
+                      className={`px-3 py-2.5 border rounded-xl text-center flex items-center justify-center gap-1.5 transition-all font-bold cursor-pointer active:scale-98 ${
+                        linkCopied 
+                          ? 'border-emerald-500 bg-emerald-500/10 text-emerald-400' 
+                          : 'border-slate-700 bg-slate-800/40 hover:bg-slate-800 text-slate-200'
+                      }`}
+                    >
+                      {linkCopied ? <Check size={14} /> : <Copy size={14} />}
+                      <span>{linkCopied ? 'Link Copied!' : 'Copy Link'}</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard.writeText(latestSimulatedEmail.body);
+                        setBodyCopied(true);
+                        setTimeout(() => setBodyCopied(false), 2000);
+                      }}
+                      className={`px-3 py-2.5 border rounded-xl text-center flex items-center justify-center gap-1.5 transition-all font-bold cursor-pointer active:scale-98 ${
+                        bodyCopied 
+                          ? 'border-emerald-500 bg-emerald-500/10 text-emerald-400' 
+                          : 'border-slate-700 bg-slate-800/40 hover:bg-slate-800 text-slate-200'
+                      }`}
+                    >
+                      {bodyCopied ? <Check size={14} /> : <Copy size={14} />}
+                      <span>{bodyCopied ? 'Text Copied!' : 'Copy Email Body'}</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="bg-slate-950 px-6 py-4 border-t border-slate-800 flex items-center justify-between gap-3">
+                <span className="text-[10px] text-slate-500 font-semibold italic">
+                  💡 Opens default system email.
                 </span>
-                <span className="text-xs font-bold text-slate-300 tracking-wider uppercase">Simulated Email Sent (Testing Console)</span>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setLatestSimulatedEmail(null)}
+                    className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold text-xs rounded-xl transition-all cursor-pointer"
+                  >
+                    Dismiss
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setOnboardingEmail(latestSimulatedEmail.to);
+                      setLatestSimulatedEmail(null);
+                    }}
+                    className="px-4 py-2 bg-slate-800 border border-slate-700 hover:bg-slate-700 text-slate-200 font-bold text-xs rounded-xl transition-all cursor-pointer flex items-center gap-1"
+                  >
+                    👉 Open Portal Here
+                  </button>
+                </div>
               </div>
-              <button 
-                onClick={() => setLatestSimulatedEmail(null)}
-                className="p-1 hover:bg-slate-800 text-slate-400 hover:text-white rounded-lg transition-colors cursor-pointer"
-              >
-                <X size={16} />
-              </button>
-            </div>
-
-            {/* Content */}
-            <div className="p-6 space-y-4 text-xs font-medium text-slate-400">
-              <div className="grid grid-cols-[60px_1fr] gap-1 pb-3 border-b border-slate-800">
-                <span className="font-semibold text-slate-500">To:</span>
-                <span className="text-slate-200 font-mono">{latestSimulatedEmail.to}</span>
-                <span className="font-semibold text-slate-500">Subject:</span>
-                <span className="text-slate-100 font-bold">{latestSimulatedEmail.subject}</span>
-              </div>
-
-              <div className="bg-slate-950/80 p-4 rounded-xl border border-slate-800 font-mono text-slate-300 leading-relaxed whitespace-pre-wrap max-h-60 overflow-y-auto">
-                {latestSimulatedEmail.body}
-              </div>
-
-              <div className="p-3 bg-indigo-500/10 border border-indigo-500/20 rounded-xl text-indigo-300 text-[11px] leading-relaxed">
-                <strong>💡 Tip for Testers:</strong> You can click the button below to instantly navigate to the onboarding portal with this email and complete the registration.
-              </div>
-            </div>
-
-            {/* Footer */}
-            <div className="bg-slate-950 px-6 py-4 border-t border-slate-800 flex items-center justify-end gap-3">
-              <button
-                type="button"
-                onClick={() => setLatestSimulatedEmail(null)}
-                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold text-xs rounded-xl transition-all cursor-pointer"
-              >
-                Dismiss
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setOnboardingEmail(latestSimulatedEmail.to);
-                  setLatestSimulatedEmail(null);
-                }}
-                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-xl transition-all shadow-md shadow-indigo-600/10 cursor-pointer flex items-center gap-1"
-              >
-                👉 Go to Onboarding Page
-              </button>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 }
