@@ -377,7 +377,24 @@ export default function App() {
     isRealSent?: boolean;
     sendError?: string;
     onboardingLink?: string;
+    htmlContent?: string;
   } | null>(null);
+
+  // Automatically trigger actual dispatch when Google Workspace is connected and a simulated email is currently shown but not sent yet.
+  useEffect(() => {
+    if (googleToken && latestSimulatedEmail && !latestSimulatedEmail.isRealSent && !latestSimulatedEmail.sendError && latestSimulatedEmail.htmlContent) {
+      const sendPendingEmail = async () => {
+        try {
+          await sendGmailNotification(googleToken, latestSimulatedEmail.to, latestSimulatedEmail.subject, latestSimulatedEmail.htmlContent!);
+          setLatestSimulatedEmail(prev => prev ? { ...prev, isRealSent: true, sendError: undefined } : null);
+        } catch (err: any) {
+          console.error("Delayed Gmail send failed:", err);
+          setLatestSimulatedEmail(prev => prev ? { ...prev, isRealSent: false, sendError: err.message || String(err) } : null);
+        }
+      };
+      sendPendingEmail();
+    }
+  }, [googleToken, latestSimulatedEmail?.htmlContent]);
 
   const [linkCopied, setLinkCopied] = useState(false);
   const [bodyCopied, setBodyCopied] = useState(false);
@@ -935,7 +952,8 @@ export default function App() {
       body: plainTextBody,
       isRealSent,
       sendError,
-      onboardingLink
+      onboardingLink,
+      htmlContent
     });
 
     await createInvitationInFirestore({
@@ -1021,7 +1039,8 @@ export default function App() {
       body: plainTextBody,
       isRealSent,
       sendError,
-      onboardingLink
+      onboardingLink,
+      htmlContent
     });
   };
 
@@ -1455,12 +1474,23 @@ export default function App() {
                     </div>
                   </div>
                 ) : (
-                  <div className="p-3 bg-slate-800/60 border border-slate-700/50 rounded-xl text-slate-300 text-xs flex items-start gap-2.5">
-                    <Info className="shrink-0 mt-0.5 text-indigo-400" size={16} />
-                    <div>
-                      <span className="font-bold block text-slate-200">Google Workspace Not Connected</span>
-                      Connect Google Workspace in the administrator panel to automate actual emails. In the meantime, use the quick actions below to send it instantly.
+                  <div className="p-4 bg-slate-800/80 border border-slate-700/60 rounded-xl text-slate-300 text-xs flex flex-col gap-3">
+                    <div className="flex items-start gap-2.5">
+                      <Info className="shrink-0 mt-0.5 text-amber-500" size={16} />
+                      <div>
+                        <span className="font-bold block text-slate-200">Google Workspace Not Connected</span>
+                        <p className="mt-0.5 text-slate-400">
+                          Google requires re-authorizing access periodically and on page refresh. Click below to reconnect your account and securely dispatch this pending email.
+                        </p>
+                      </div>
                     </div>
+                    <button
+                      type="button"
+                      onClick={handleGoogleConnect}
+                      className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold text-xs rounded-xl transition-all cursor-pointer flex items-center gap-1.5 self-start shadow-sm shadow-indigo-600/10 active:scale-95"
+                    >
+                      <CloudLightning size={12} /> Connect Google Workspace
+                    </button>
                   </div>
                 )}
 

@@ -8,7 +8,8 @@ import { FestivalEvent, StaffProfile, Shift, TimeLog, Invitation, Invoice, Invoi
 import { 
   Calendar, MapPin, Clock, Users, DollarSign, Plus, ArrowRight,
   AlertTriangle, CheckCircle, XCircle, Info, ShieldAlert, Award, Footprints, Layers,
-  Edit, X, Trash2, Shield, UserPlus, Mail, Star, Check, FileText, Download, Printer
+  Edit, X, Trash2, Shield, UserPlus, Mail, Star, Check, FileText, Download, Printer,
+  CloudLightning, ExternalLink
 } from 'lucide-react';
 import { downloadInvoice } from '../utils/invoiceDownload';
 
@@ -35,6 +36,12 @@ interface AdminPanelProps {
   onMarkInvoiceAsPaid?: (invoiceId: string) => void;
   onRejectInvoice?: (invoiceId: string, reason: string) => void;
   currentAdminProfile?: StaffProfile;
+  googleUser?: any;
+  googleToken?: string | null;
+  backupSpreadsheetId?: string | null;
+  onGoogleConnect?: () => Promise<void>;
+  onGoogleDisconnect?: () => Promise<void>;
+  onBackupAllShifts?: () => Promise<void>;
 }
 
 // Helper to parse time strings "HH:MM" into decimal hours
@@ -93,7 +100,13 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   onApproveInvoice,
   onMarkInvoiceAsPaid,
   onRejectInvoice,
-  currentAdminProfile
+  currentAdminProfile,
+  googleUser,
+  googleToken,
+  backupSpreadsheetId,
+  onGoogleConnect,
+  onGoogleDisconnect,
+  onBackupAllShifts
 }) => {
   // Tabs
   const [activeTab, setActiveTab] = useState<'events' | 'shifts' | 'allocations' | 'payroll' | 'staff' | 'invoices'>('events');
@@ -2221,6 +2234,89 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       {/* Tab 5: Staff Directory & Status */}
       {activeTab === 'staff' && (
         <div className="space-y-6 animate-fade-in" id="staff-tab">
+          
+          {/* Google Workspace Integration Control Center */}
+          <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-xs">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
+              <div className="flex items-center gap-2.5">
+                <span className={`p-2 rounded-xl flex items-center justify-center ${googleToken ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
+                  <Layers size={18} />
+                </span>
+                <div>
+                  <h3 className="font-bold text-slate-950 text-sm">Google Workspace Integration</h3>
+                  <p className="text-xs text-slate-500 font-medium">Automate invitations via Gmail API and back up shift logs via Google Sheets API</p>
+                </div>
+              </div>
+              
+              {onGoogleConnect && (
+                <div className="flex items-center gap-2">
+                  {googleToken ? (
+                    <>
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 text-emerald-700 text-xs font-bold rounded-lg border border-emerald-200/50">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                        Workspace Active
+                      </span>
+                      {onGoogleDisconnect && (
+                        <button
+                          type="button"
+                          onClick={onGoogleDisconnect}
+                          className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition-all cursor-pointer active:scale-95"
+                        >
+                          Disconnect
+                        </button>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-amber-50 text-amber-700 text-xs font-bold rounded-lg border border-amber-200/50 animate-pulse">
+                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                        Not Connected
+                      </span>
+                      <button
+                        type="button"
+                        onClick={onGoogleConnect}
+                        className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-extrabold rounded-xl transition-all cursor-pointer flex items-center gap-1.5 shadow-sm shadow-indigo-600/10 active:scale-95"
+                      >
+                        <CloudLightning size={12} /> Connect Workspace
+                      </button>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-semibold text-slate-600 leading-relaxed">
+              <div className="p-3.5 bg-slate-50 border border-slate-100 rounded-xl space-y-1.5">
+                <span className="text-slate-900 font-bold block text-xs">✉️ Gmail Delivery</span>
+                <p className="text-slate-500 font-medium text-[11px]">
+                  When connected, onboarding invite emails and shift notification emails are automatically dispatched via your actual Gmail/Google Workspace account, ensuring high-deliverability inbox placement.
+                </p>
+              </div>
+              
+              <div className="p-3.5 bg-slate-50 border border-slate-100 rounded-xl space-y-1.5">
+                <span className="text-slate-900 font-bold block text-xs">📊 Google Sheets Live Backup</span>
+                {backupSpreadsheetId ? (
+                  <div className="space-y-1">
+                    <p className="text-slate-500 font-medium text-[11px]">
+                      Your shifts database is being backed up in real-time to Google Sheets:
+                    </p>
+                    <a 
+                      href={`https://docs.google.com/spreadsheets/d/${backupSpreadsheetId}/edit`} 
+                      target="_blank" 
+                      rel="noreferrer"
+                      className="text-indigo-600 hover:text-indigo-700 flex items-center gap-1 mt-1 underline decoration-indigo-300 font-bold text-[11px]"
+                    >
+                      Open Backup Spreadsheet <ExternalLink size={10} />
+                    </a>
+                  </div>
+                ) : (
+                  <p className="text-slate-500 font-medium text-[11px]">
+                    When connected, a master backup spreadsheet will be automatically created in your Google Drive to log and sync all staff hours, timesheets, and ratings securely.
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
           
           {/* Top Row: Add Staff & Metrics */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
