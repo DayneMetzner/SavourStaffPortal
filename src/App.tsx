@@ -48,6 +48,7 @@ import {
   saveTimeLogToFirestore,
   createInvitationInFirestore,
   markInvitationRegisteredInFirestore,
+  deleteInvitationFromFirestore,
   saveInvoiceToFirestore,
   updateInvoiceStatusInFirestore,
   updateEventInFirestore,
@@ -883,6 +884,32 @@ export default function App() {
     });
   };
 
+  const handleDeleteInvitation = async (email: string) => {
+    const cleanEmail = email.trim().toLowerCase();
+    if (!window.confirm(`Are you sure you want to cancel and delete the invitation for ${cleanEmail}?`)) {
+      return;
+    }
+    const updated = invitations.filter(i => i.email.toLowerCase() !== cleanEmail);
+    setInvitations(updated);
+    saveData('fest_invitations', updated);
+    await deleteInvitationFromFirestore(cleanEmail);
+  };
+
+  const handleResendInvitation = (email: string) => {
+    const cleanEmail = email.trim().toLowerCase();
+    const inv = invitations.find(i => i.email.toLowerCase() === cleanEmail);
+    if (!inv) {
+      alert(`Could not find an invitation for "${cleanEmail}".`);
+      return;
+    }
+    const currentURL = window.location.origin + window.location.pathname;
+    setLatestSimulatedEmail({
+      to: cleanEmail,
+      subject: '🎪 Join Savour Food Festival Staff Team - Onboarding Link',
+      body: `Hi there!\n\nYou have been invited to register as a staff member on the Savour Food Festival Portal.\n\nPlease click the link below to set up your billing details, emergency contact, medical declarations, and sign the official Code of Conduct:\n\n${currentURL}?onboardEmail=${encodeURIComponent(cleanEmail)}\n\nBest regards,\nSavour Festival Operations Team`
+    });
+  };
+
   // 16. Onboarding Completion
   const handleOnboardComplete = async (profileData: StaffProfile) => {
     const updatedProfiles = [...staffProfiles, profileData];
@@ -1210,6 +1237,8 @@ export default function App() {
             onDeleteStaff={handleDeleteStaff}
             onUpdateStaffRole={handleUpdateStaffRole}
             onInviteStaffEmail={handleInviteStaff}
+            onDeleteInvitation={handleDeleteInvitation}
+            onResendInvitation={handleResendInvitation}
             onApproveInvoice={handleApproveInvoice}
             onMarkInvoiceAsPaid={handleMarkInvoiceAsPaid}
             onRejectInvoice={handleRejectInvoice}

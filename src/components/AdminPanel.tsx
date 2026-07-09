@@ -28,6 +28,8 @@ interface AdminPanelProps {
   onDeleteStaff?: (staffId: string) => void;
   onUpdateStaffRole?: (staffId: string, role: 'staff' | 'admin') => void;
   onInviteStaffEmail?: (email: string) => void;
+  onDeleteInvitation?: (email: string) => void;
+  onResendInvitation?: (email: string) => void;
   invoices?: Invoice[];
   onApproveInvoice?: (invoiceId: string, adminId: string, adminName: string) => void;
   onMarkInvoiceAsPaid?: (invoiceId: string) => void;
@@ -85,6 +87,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   onDeleteStaff,
   onUpdateStaffRole,
   onInviteStaffEmail,
+  onDeleteInvitation,
+  onResendInvitation,
   invoices = [],
   onApproveInvoice,
   onMarkInvoiceAsPaid,
@@ -2299,16 +2303,38 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               <h4 className="font-bold text-slate-900 text-xs uppercase tracking-wider mb-3">Pending Sent Invitations</h4>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                 {invitations.map((inv, idx) => (
-                  <div key={idx} className="p-3 bg-slate-50 border border-slate-100 rounded-xl flex items-center justify-between text-xs font-semibold text-slate-700">
+                  <div key={idx} className="p-3 bg-slate-50 border border-slate-100 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs font-semibold text-slate-700">
                     <div className="space-y-0.5 min-w-0">
                       <span className="text-slate-900 font-mono truncate block" title={inv.email}>{inv.email}</span>
                       <span className="text-[10px] text-slate-400 font-medium">Invited: {new Date(inv.invitedAt).toLocaleDateString()}</span>
                     </div>
-                    <div>
+                    <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-auto">
                       {inv.status === 'registered' ? (
                         <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 text-[10px] rounded-md font-extrabold uppercase">Registered</span>
                       ) : (
-                        <span className="px-2 py-0.5 bg-amber-50 text-amber-700 text-[10px] rounded-md font-extrabold uppercase animate-pulse">Invited</span>
+                        <>
+                          <span className="px-2 py-0.5 bg-amber-50 text-amber-700 text-[10px] rounded-md font-extrabold uppercase animate-pulse">Invited</span>
+                          {onResendInvitation && (
+                            <button
+                              onClick={() => onResendInvitation(inv.email)}
+                              className="p-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-lg transition-colors cursor-pointer flex items-center gap-1 active:scale-95"
+                              title="Resend invitation link"
+                            >
+                              <Mail size={12} />
+                              <span className="text-[10px] font-bold">Resend</span>
+                            </button>
+                          )}
+                          {onDeleteInvitation && (
+                            <button
+                              onClick={() => onDeleteInvitation(inv.email)}
+                              className="p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-lg transition-colors cursor-pointer flex items-center gap-1 active:scale-95"
+                              title="Delete / cancel invitation"
+                            >
+                              <Trash2 size={12} />
+                              <span className="text-[10px] font-bold">Cancel</span>
+                            </button>
+                          )}
+                        </>
                       )}
                     </div>
                   </div>
