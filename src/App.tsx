@@ -12,7 +12,7 @@ import {
   loadData, 
   saveData 
 } from './mockData';
-import { FestivalEvent, StaffProfile, Shift, TimeLog, Invitation, Invoice } from './types';
+import { FestivalEvent, StaffProfile, Shift, TimeLog, Invitation, Invoice, ADMIN_EMAILS } from './types';
 import { LoginScreen } from './components/LoginScreen';
 import { AdminPanel } from './components/AdminPanel';
 import { StaffPanel } from './components/StaffPanel';
@@ -21,6 +21,7 @@ import { Shield, User, Users, ClipboardList, Info, Sparkles, Mail, Check, X, Shi
 import { 
   initGoogleAuth, 
   loginWithGoogle, 
+  loginWithGoogleAdmin,
   logoutFromGoogle, 
   sendGmailNotification, 
   createBackupSpreadsheet, 
@@ -122,7 +123,7 @@ export default function App() {
         try {
           const live = await getStaffProfilesFromFirestore();
           if (live && live.length > 0) {
-            const hasAdmin = live.some(p => p.role === 'admin' || p.email.toLowerCase() === 'dayne@savourfestival.com');
+            const hasAdmin = live.some(p => p.role === 'admin' || (p.email && ADMIN_EMAILS.includes(p.email.toLowerCase().trim())));
             const merged = hasAdmin ? live : [INITIAL_STAFF.find(p => p.role === 'admin') || INITIAL_STAFF[0], ...live];
             setStaffProfiles(merged);
             currentStaffList = merged;
@@ -136,9 +137,11 @@ export default function App() {
           currentStaffList = INITIAL_STAFF;
         }
 
-        if (email === 'dayne@savourfestival.com') {
+        if (email && ADMIN_EMAILS.includes(email)) {
           setIsAuthenticated(true);
-          const adminProfile = currentStaffList.find(p => p.role === 'admin') || INITIAL_STAFF.find(p => p.role === 'admin');
+          const adminProfile = currentStaffList.find(p => p.email.toLowerCase().trim() === email) || 
+                               currentStaffList.find(p => p.role === 'admin') || 
+                               INITIAL_STAFF.find(p => p.role === 'admin');
           if (adminProfile) {
             setCurrentProfileId(adminProfile.id);
           }
@@ -212,7 +215,7 @@ export default function App() {
     const unsubProfiles = subscribeToStaffProfiles(
       (data) => {
         if (data.length > 0) {
-          const hasAdmin = data.some(p => p.role === 'admin' || p.email.toLowerCase() === 'dayne@savourfestival.com');
+          const hasAdmin = data.some(p => p.role === 'admin' || (p.email && ADMIN_EMAILS.includes(p.email.toLowerCase().trim())));
           if (!hasAdmin) {
             const defaultAdmin = INITIAL_STAFF.find(p => p.role === 'admin') || INITIAL_STAFF[0];
             setStaffProfiles([defaultAdmin, ...data]);
@@ -284,7 +287,7 @@ export default function App() {
 
   const handleGoogleConnect = async () => {
     try {
-      const result = await loginWithGoogle();
+      const result = await loginWithGoogleAdmin();
       if (result) {
         setGoogleUser(result.user);
         setGoogleToken(result.accessToken);
@@ -897,9 +900,9 @@ export default function App() {
 
     // Calculate current URL for testing convenience
     const currentURL = window.location.origin + window.location.pathname;
-    const onboardingLink = `${currentURL}?onboardEmail=${encodeURIComponent(cleanEmail)}`;
-    const emailSubject = '🎪 Join Savour Food Festival Staff Team - Onboarding Link';
-    const plainTextBody = `Hi there!\n\nYou have been invited to register as a staff member on the Savour Food Festival Portal.\n\nPlease click the link below to set up your billing details, emergency contact, medical declarations, and sign the official Code of Conduct:\n\n${onboardingLink}\n\nBest regards,\nSavour Operations Team`;
+    const onboardingLink = currentURL;
+    const emailSubject = 'Join Savour Food Festival Staff Team - Onboarding Link';
+    const plainTextBody = `Hi there!\n\nYou have been invited to register as a staff member on the Savour Food Festival Portal.\n\nPlease click the link below to visit the portal, click "Create Staff Account / Sign Up", and enter your email address to set up your billing details, emergency contact, medical declarations, and sign the official Code of Conduct:\n\n${onboardingLink}\n\nBest regards,\nSavour Operations Team`;
 
     const htmlContent = `
       <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 16px; background-color: #ffffff;">
@@ -912,11 +915,11 @@ export default function App() {
         <div style="color: #334155; font-size: 15px; line-height: 1.6; margin-bottom: 24px;">
           <p>Hi there,</p>
           <p>You have been invited to register as an official staff member on the <strong>Savour Food Festival Portal</strong>.</p>
-          <p>Please click the button below to set up your profile, complete medical and emergency contact declarations, and sign the mandatory Code of Conduct:</p>
+          <p>Please click the button below to visit the login landing page, click the <strong>Create Staff Account / Sign Up</strong> button, and enter your email to complete your registration:</p>
           
           <div style="text-align: center; margin: 32px 0;">
             <a href="${onboardingLink}" target="_blank" style="background-color: #4f46e5; color: #ffffff; padding: 14px 28px; text-decoration: none; border-radius: 12px; font-weight: bold; font-size: 15px; display: inline-block; box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.2); text-align: center;">
-              Complete Staff Registration
+              Go to Savour Staff Portal
             </a>
           </div>
           
@@ -984,9 +987,9 @@ export default function App() {
       return;
     }
     const currentURL = window.location.origin + window.location.pathname;
-    const onboardingLink = `${currentURL}?onboardEmail=${encodeURIComponent(cleanEmail)}`;
-    const emailSubject = '🎪 Join Savour Food Festival Staff Team - Onboarding Link';
-    const plainTextBody = `Hi there!\n\nYou have been invited to register as a staff member on the Savour Food Festival Portal.\n\nPlease click the link below to set up your billing details, emergency contact, medical declarations, and sign the official Code of Conduct:\n\n${onboardingLink}\n\nBest regards,\nSavour Operations Team`;
+    const onboardingLink = currentURL;
+    const emailSubject = 'Join Savour Food Festival Staff Team - Onboarding Link';
+    const plainTextBody = `Hi there!\n\nYou have been invited to register as a staff member on the Savour Food Festival Portal.\n\nPlease click the link below to visit the portal, click "Create Staff Account / Sign Up", and enter your email address to set up your billing details, emergency contact, medical declarations, and sign the official Code of Conduct:\n\n${onboardingLink}\n\nBest regards,\nSavour Operations Team`;
 
     const htmlContent = `
       <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 16px; background-color: #ffffff;">
@@ -999,11 +1002,11 @@ export default function App() {
         <div style="color: #334155; font-size: 15px; line-height: 1.6; margin-bottom: 24px;">
           <p>Hi there,</p>
           <p>You have been invited to register as an official staff member on the <strong>Savour Food Festival Portal</strong>.</p>
-          <p>Please click the button below to set up your profile, complete medical and emergency contact declarations, and sign the mandatory Code of Conduct:</p>
+          <p>Please click the button below to visit the login landing page, click the <strong>Create Staff Account / Sign Up</strong> button, and enter your email to complete your registration:</p>
           
           <div style="text-align: center; margin: 32px 0;">
             <a href="${onboardingLink}" target="_blank" style="background-color: #4f46e5; color: #ffffff; padding: 14px 28px; text-decoration: none; border-radius: 12px; font-weight: bold; font-size: 15px; display: inline-block; box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.2); text-align: center;">
-              Complete Staff Registration
+              Go to Savour Staff Portal
             </a>
           </div>
           
@@ -1178,6 +1181,10 @@ export default function App() {
     }
   };
 
+  const handleStartOnboarding = (email: string) => {
+    setOnboardingEmail(email);
+  };
+
   const handleLoginSuccess = (email: string, role: 'admin' | 'staff', googleTokenString?: string | null) => {
     if (role === 'admin' && !googleTokenString) {
       sessionStorage.setItem('savour_hq_session', 'admin');
@@ -1192,8 +1199,8 @@ export default function App() {
     const matched = staffProfiles.find(p => p.email.toLowerCase().trim() === email.toLowerCase().trim());
     if (matched) {
       setCurrentProfileId(matched.id);
-    } else if (email === 'dayne@savourfestival.com') {
-      const adminProfile = staffProfiles.find(p => p.role === 'admin') || INITIAL_STAFF.find(p => p.role === 'admin');
+    } else if (email && ADMIN_EMAILS.includes(email.toLowerCase().trim())) {
+      const adminProfile = staffProfiles.find(p => p.role === 'admin' || ADMIN_EMAILS.includes(p.email.toLowerCase().trim())) || INITIAL_STAFF.find(p => p.role === 'admin');
       if (adminProfile) {
         setCurrentProfileId(adminProfile.id);
       }
@@ -1279,7 +1286,14 @@ export default function App() {
   }
 
   if (!isAuthenticated) {
-    return <LoginScreen onLoginSuccess={handleLoginSuccess} staffProfiles={staffProfiles} />;
+    return (
+      <LoginScreen 
+        onLoginSuccess={handleLoginSuccess} 
+        staffProfiles={staffProfiles} 
+        onStartOnboarding={handleStartOnboarding}
+        invitations={invitations}
+      />
+    );
   }
 
   return (

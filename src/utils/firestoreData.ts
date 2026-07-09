@@ -427,3 +427,19 @@ export async function getStaffProfilesFromFirestore(): Promise<StaffProfile[]> {
   }
 }
 
+export async function getInvitationsFromFirestore(): Promise<Invitation[]> {
+  const path = 'invitations';
+  try {
+    const snapshot = await getDocs(collection(db, path));
+    const list: Invitation[] = [];
+    snapshot.forEach((docSnap) => {
+      list.push(docSnap.data() as Invitation);
+    });
+    return list;
+  } catch (error) {
+    handleFirestoreError(error, OperationType.LIST, path);
+    return [];
+  }
+}
+
+

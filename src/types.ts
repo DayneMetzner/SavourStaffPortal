@@ -3,6 +3,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+export const ADMIN_EMAILS = [
+  'dayne@savourfestival.com',
+  'alex@savourfestival.com',
+  'dan@savourfestival.com'
+];
+
 export interface FinancialDetails {
   nameOnAccount: string;
   sortCode: string;

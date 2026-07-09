@@ -18,10 +18,13 @@ import firebaseConfig from '../../firebase-applet-config.json';
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 export const auth = getAuth(app);
 
-// Configure Google OAuth Provider with required scopes
+// Configure Google OAuth Provider with basic profile/email scopes (default, no extra permissions)
 export const googleProvider = new GoogleAuthProvider();
-googleProvider.addScope('https://www.googleapis.com/auth/spreadsheets');
-googleProvider.addScope('https://www.googleapis.com/auth/gmail.send');
+
+// Configure Google OAuth Provider specifically for administrative tasks with spreadsheet and email send permissions
+export const googleAdminProvider = new GoogleAuthProvider();
+googleAdminProvider.addScope('https://www.googleapis.com/auth/spreadsheets');
+googleAdminProvider.addScope('https://www.googleapis.com/auth/gmail.send');
 
 // In-memory token cache
 let cachedAccessToken: string | null = null;
@@ -61,6 +64,25 @@ export const loginWithGoogle = async (): Promise<{ user: User; accessToken: stri
     return { user: result.user, accessToken: cachedAccessToken };
   } catch (error) {
     console.error('Google Sign-In Error:', error);
+    throw error;
+  } finally {
+    isSigningIn = false;
+  }
+};
+
+// Sign in with Google Popup with admin scopes
+export const loginWithGoogleAdmin = async (): Promise<{ user: User; accessToken: string } | null> => {
+  try {
+    isSigningIn = true;
+    const result = await signInWithPopup(auth, googleAdminProvider);
+    const credential = GoogleAuthProvider.credentialFromResult(result);
+    if (!credential?.accessToken) {
+      throw new Error('Failed to retrieve Google OAuth access token for administrative tasks.');
+    }
+    cachedAccessToken = credential.accessToken;
+    return { user: result.user, accessToken: cachedAccessToken };
+  } catch (error) {
+    console.error('Google Admin Sign-In Error:', error);
     throw error;
   } finally {
     isSigningIn = false;
