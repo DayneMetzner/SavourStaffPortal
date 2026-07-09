@@ -84,7 +84,9 @@ export default function App() {
   );
 
   const [googleUser, setGoogleUser] = useState<any>(null);
-  const [googleToken, setGoogleToken] = useState<string | null>(null);
+  const [googleToken, setGoogleToken] = useState<string | null>(() => {
+    return sessionStorage.getItem('savour_google_token') || null;
+  });
   const [backupSpreadsheetId, setBackupSpreadsheetId] = useState<string | null>(() => {
     return localStorage.getItem('savour_backup_spreadsheet_id') || null;
   });
@@ -286,6 +288,9 @@ export default function App() {
       if (result) {
         setGoogleUser(result.user);
         setGoogleToken(result.accessToken);
+        if (result.accessToken) {
+          sessionStorage.setItem('savour_google_token', result.accessToken);
+        }
         
         // If we don't have a spreadsheet ID, automatically create one!
         if (!backupSpreadsheetId) {
@@ -308,6 +313,7 @@ export default function App() {
       await logoutFromGoogle();
       setGoogleUser(null);
       setGoogleToken(null);
+      sessionStorage.removeItem('savour_google_token');
       alert('Disconnected from Google Workspace.');
     } catch (err: any) {
       console.error(err);
@@ -1157,6 +1163,10 @@ export default function App() {
     if (role === 'admin' && !googleTokenString) {
       sessionStorage.setItem('savour_hq_session', 'admin');
     }
+    if (googleTokenString) {
+      setGoogleToken(googleTokenString);
+      sessionStorage.setItem('savour_google_token', googleTokenString);
+    }
     setIsAuthenticated(true);
     
     // Find matched profile
@@ -1174,9 +1184,11 @@ export default function App() {
   const handleLogout = async () => {
     try {
       sessionStorage.removeItem('savour_hq_session');
+      sessionStorage.removeItem('savour_google_token');
       await logoutFromGoogle();
       setIsAuthenticated(false);
       setCurrentProfileId('');
+      setGoogleToken(null);
     } catch (err) {
       console.error(err);
     }
