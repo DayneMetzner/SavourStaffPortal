@@ -73,9 +73,26 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
         }
 
         // Check if registered in staff profiles
-        const matchedProfile = currentProfilesList.find(
+        let matchedProfile = currentProfilesList.find(
           (p) => p.email.toLowerCase().trim() === authenticatedEmail
         );
+
+        if (!matchedProfile) {
+          // Fallback: Check local staffProfiles prop (from localStorage)
+          const localProfile = staffProfiles.find(
+            (p) => p.email.toLowerCase().trim() === authenticatedEmail
+          );
+          if (localProfile) {
+            try {
+              const { saveStaffProfileToFirestore, markInvitationRegisteredInFirestore } = await import('../utils/firestoreData');
+              await saveStaffProfileToFirestore(localProfile);
+              await markInvitationRegisteredInFirestore(localProfile.email);
+              matchedProfile = localProfile;
+            } catch (syncErr) {
+              console.error("Login Screen: failed to sync local profile to Firestore:", syncErr);
+            }
+          }
+        }
 
         if (matchedProfile) {
           const role = matchedProfile.role || 'staff';

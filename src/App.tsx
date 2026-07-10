@@ -167,7 +167,24 @@ export default function App() {
             }
           } else {
             // Check if registered staff member
-            const matched = currentStaffList.find(p => p.email.toLowerCase().trim() === email);
+            let matched = currentStaffList.find(p => p.email.toLowerCase().trim() === email);
+
+            if (!matched && email) {
+              // Fallback: check if they have a local profile in state (loaded from localStorage)
+              const localProfile = staffProfiles.find(p => p.email.toLowerCase().trim() === email);
+              if (localProfile) {
+                try {
+                  await saveStaffProfileToFirestore(localProfile);
+                  await markInvitationRegisteredInFirestore(localProfile.email);
+                  matched = localProfile;
+                  currentStaffList = [...currentStaffList, localProfile];
+                  setStaffProfiles(currentStaffList);
+                } catch (syncErr) {
+                  console.error("Auth state change: failed to sync local profile to Firestore:", syncErr);
+                }
+              }
+            }
+
             if (matched) {
               setIsAuthenticated(true);
               setCurrentProfileId(matched.id);
