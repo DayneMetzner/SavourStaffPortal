@@ -442,4 +442,20 @@ export async function getInvitationsFromFirestore(): Promise<Invitation[]> {
   }
 }
 
+export async function getInvitationFromFirestore(email: string): Promise<Invitation | null> {
+  const safeId = email.replace(/[.#$/[\]]/g, '_');
+  const path = `invitations/${safeId}`;
+  try {
+    const docSnap = await getDoc(doc(db, 'invitations', safeId));
+    if (docSnap.exists()) {
+      return docSnap.data() as Invitation;
+    }
+    return null;
+  } catch (error) {
+    handleFirestoreError(error, OperationType.GET, path);
+    return null;
+  }
+}
+
+
 

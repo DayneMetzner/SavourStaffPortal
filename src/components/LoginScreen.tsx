@@ -121,56 +121,44 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
     }
 
     try {
-      // 1. Check if they are already a registered staff member
-      let currentProfilesList = staffProfiles;
+      // Fetch the invitation for this email address directly from Firestore (live, secure, non-cached lookup)
+      let matchedInvitation: any = null;
       try {
-        const { getStaffProfilesFromFirestore } = await import('../utils/firestoreData');
-        const live = await getStaffProfilesFromFirestore();
-        if (live && live.length > 0) {
-          currentProfilesList = live;
-        }
+        const { getInvitationFromFirestore } = await import('../utils/firestoreData');
+        matchedInvitation = await getInvitationFromFirestore(cleanEmail);
       } catch (dbErr) {
-        console.error("SignUp: failed to pull live whitelists from Firestore:", dbErr);
+        console.error("SignUp: failed to fetch invitation from Firestore:", dbErr);
       }
 
-      const isAlreadyRegistered = currentProfilesList.some(
-        (p) => p.email.toLowerCase().trim() === cleanEmail
-      );
-
-      if (isAlreadyRegistered) {
-        setLoginError(`The email "${cleanEmail}" is already registered. Please Sign In using Google SSO instead.`);
-        setIsVerifyingSignUp(false);
-        return;
+      // Fallback to local cached invitations state if offline/errors
+      if (!matchedInvitation && invitations) {
+        matchedInvitation = invitations.find(
+          (i) => i.email.toLowerCase().trim() === cleanEmail
+        ) || null;
       }
-
-      // 2. Query invitations from Firestore to ensure we have the most up-to-date data
-      let currentInvs = invitations;
-      try {
-        const { getInvitationsFromFirestore } = await import('../utils/firestoreData');
-        const liveInvs = await getInvitationsFromFirestore();
-        if (liveInvs && liveInvs.length > 0) {
-          currentInvs = liveInvs;
-        }
-      } catch (dbErr) {
-        console.error("SignUp: failed to pull live invitations from Firestore:", dbErr);
-      }
-
-      const matchedInvitation = currentInvs.find(
-        (i) => i.email.toLowerCase().trim() === cleanEmail && i.status === 'invited'
-      );
 
       if (matchedInvitation) {
-        // Clear sign up form
-        setSignUpEmail('');
-        setShowSignUpForm(false);
-        if (onStartOnboarding) {
-          onStartOnboarding(cleanEmail);
+        if (matchedInvitation.status === 'registered') {
+          setLoginError(`The email "${cleanEmail}" is already registered. Please Sign In using Google SSO instead.`);
+          setIsVerifyingSignUp(false);
+          return;
         }
-      } else {
-        setLoginError(
-          `No active invitation found for "${cleanEmail}". Please ensure you entered the exact email where you received the invite, or contact your coordinator to send you an invitation.`
-        );
+
+        if (matchedInvitation.status === 'invited') {
+          // Clear sign up form
+          setSignUpEmail('');
+          setShowSignUpForm(false);
+          if (onStartOnboarding) {
+            onStartOnboarding(cleanEmail);
+          }
+          return;
+        }
       }
+
+      // If we reach here, we did not find any active/matching invitation
+      setLoginError(
+        `No active invitation found for "${cleanEmail}". Please ensure you entered the exact email where you received the invite, or contact your coordinator to send you an invitation.`
+      );
     } catch (err: any) {
       console.error(err);
       setLoginError(err.message || 'Verification failed. Please try again.');
