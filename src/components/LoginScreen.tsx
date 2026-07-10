@@ -4,8 +4,8 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { Shield, User, LogIn, Sparkles, AlertCircle, HelpCircle, Mail, ArrowRight } from 'lucide-react';
-import { loginWithGoogle, logoutFromGoogle } from '../utils/googleAuth';
+import { Shield, User, LogIn, Sparkles, AlertCircle, HelpCircle, Mail, ArrowRight, Lock } from 'lucide-react';
+import { loginWithGoogle, logoutFromGoogle, loginWithEmailPassword, registerWithEmailPassword } from '../utils/googleAuth';
 import { ADMIN_EMAILS } from '../types';
 
 interface LoginScreenProps {
@@ -23,6 +23,11 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
 }) => {
   const [showSignUpForm, setShowSignUpForm] = useState(true); // Default to registration/sign-up tab first to encourage onboarding
   const [signUpEmail, setSignUpEmail] = useState('');
+  const [loginEmail, setLoginEmail] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+  const [signUpPassword, setSignUpPassword] = useState('');
+  const [signUpConfirmPassword, setSignUpConfirmPassword] = useState('');
+  const [authMethod, setAuthMethod] = useState<'google' | 'password'>('password');
   const [showPasscodeForm, setShowPasscodeForm] = useState(false);
   const [adminEmail, setAdminEmail] = useState('dayne@savourfestival.com');
   const [adminCode, setAdminCode] = useState('');
@@ -115,6 +120,87 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
     }
   };
 
+  const handleEmailPasswordLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoginError(null);
+    const emailClean = loginEmail.trim().toLowerCase();
+    const pwd = loginPassword;
+
+    if (!emailClean || !pwd) {
+      setLoginError('Please enter both email and password.');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const user = await loginWithEmailPassword(emailClean, pwd);
+      
+      // Fetch newest staff profiles from Firestore to prevent stale local whitelists
+      let currentProfilesList = staffProfiles;
+      try {
+        const { getStaffProfilesFromFirestore } = await import('../utils/firestoreData');
+        const live = await getStaffProfilesFromFirestore();
+        if (live && live.length > 0) {
+          currentProfilesList = live;
+        }
+      } catch (dbErr) {
+        console.error("Login Screen: failed to pull live whitelists from Firestore:", dbErr);
+      }
+
+      // Check if this email is an admin
+      if (ADMIN_EMAILS.includes(emailClean)) {
+        onLoginSuccess(emailClean, 'admin', null);
+        return;
+      }
+
+      // Check if registered in staff profiles
+      let matchedProfile = currentProfilesList.find(
+        (p) => p.email.toLowerCase().trim() === emailClean
+      );
+
+      if (!matchedProfile) {
+        // Fallback: Check local staffProfiles prop (from localStorage)
+        const localProfile = staffProfiles.find(
+          (p) => p.email.toLowerCase().trim() === emailClean
+        );
+        if (localProfile) {
+          try {
+            const { saveStaffProfileToFirestore, markInvitationRegisteredInFirestore } = await import('../utils/firestoreData');
+            await saveStaffProfileToFirestore(localProfile);
+            await markInvitationRegisteredInFirestore(localProfile.email);
+            matchedProfile = localProfile;
+          } catch (syncErr) {
+            console.error("Login Screen: failed to sync local profile to Firestore:", syncErr);
+          }
+        }
+      }
+
+      if (matchedProfile) {
+        const role = matchedProfile.role || 'staff';
+        onLoginSuccess(emailClean, role, null);
+      } else {
+        setLoginError(
+          `No registered staff profile found for "${emailClean}". Please complete your registration via the "Register / Sign Up" tab first to activate your account.`
+        );
+        setSignUpEmail(emailClean);
+        setShowSignUpForm(true); // Switch back to Sign Up tab
+      }
+    } catch (err: any) {
+      console.error(err);
+      let errMsg = 'Login failed. Please check your credentials.';
+      if (err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential') {
+        errMsg = 'Incorrect email or password. Please try again.';
+      } else if (err.code === 'auth/invalid-email') {
+        errMsg = 'Please enter a valid email address.';
+      } else if (err.message) {
+        errMsg = err.message;
+      }
+      setLoginError(errMsg);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleSignUpSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoginError(null);
@@ -131,39 +217,71 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
       return;
     }
 
+    if (authMethod === 'password') {
+      if (!signUpPassword) {
+        setLoginError('Please choose a password.');
+        return;
+      }
+      if (signUpPassword.length < 6) {
+        setLoginError('Password must be at least 6 characters long.');
+        return;
+      }
+      if (signUpPassword !== signUpConfirmPassword) {
+        setLoginError('Passwords do not match.');
+        return;
+      }
+    }
+
     setIsLoading(true);
     try {
       // Save invited email to sessionStorage for reference in onboarding wizard
       sessionStorage.setItem('savour_pending_invited_email', cleanEmail);
       
-      const result = await loginWithGoogle();
-      if (result) {
-        const authenticatedEmail = result.user.email?.toLowerCase().trim();
-        if (!authenticatedEmail) {
-          throw new Error("Unable to retrieve email from your Google Account.");
+      if (authMethod === 'password') {
+        // Register using email/password
+        const user = await registerWithEmailPassword(cleanEmail, signUpPassword);
+        
+        // Proceed to onboarding using their registered email
+        if (onStartOnboarding) {
+          onStartOnboarding(cleanEmail);
         }
+      } else {
+        // Sign in with Google as verification method
+        const result = await loginWithGoogle();
+        if (result) {
+          const authenticatedEmail = result.user.email?.toLowerCase().trim();
+          if (!authenticatedEmail) {
+            throw new Error("Unable to retrieve email from your Google Account.");
+          }
 
-        // Check if already registered with this Google Account email
-        const alreadyRegisteredGoogle = staffProfiles.some(
-          (p) => p.email.toLowerCase().trim() === authenticatedEmail
-        );
-        if (alreadyRegisteredGoogle) {
-          const matchedProfile = staffProfiles.find(
+          // Check if already registered with this Google Account email
+          const alreadyRegisteredGoogle = staffProfiles.some(
             (p) => p.email.toLowerCase().trim() === authenticatedEmail
           );
-          const role = matchedProfile?.role || 'staff';
-          onLoginSuccess(authenticatedEmail, role, result.accessToken);
-          return;
-        }
+          if (alreadyRegisteredGoogle) {
+            const matchedProfile = staffProfiles.find(
+              (p) => p.email.toLowerCase().trim() === authenticatedEmail
+            );
+            const role = matchedProfile?.role || 'staff';
+            onLoginSuccess(authenticatedEmail, role, result.accessToken);
+            return;
+          }
 
-        // Proceed to onboarding using their authenticated Google email
-        if (onStartOnboarding) {
-          onStartOnboarding(authenticatedEmail);
+          // Proceed to onboarding using their authenticated Google email
+          if (onStartOnboarding) {
+            onStartOnboarding(authenticatedEmail);
+          }
         }
       }
     } catch (err: any) {
       console.error(err);
-      setLoginError(err.message || 'Google Authentication failed. Please try again.');
+      let errMsg = err.message || 'Authentication failed. Please try again.';
+      if (err.code === 'auth/email-already-in-use') {
+        errMsg = 'This email address is already in use by another account. Try logging in instead.';
+      } else if (err.code === 'auth/weak-password') {
+        errMsg = 'The password is too weak. Please use at least 6 characters.';
+      }
+      setLoginError(errMsg);
     } finally {
       setIsLoading(false);
     }
@@ -255,15 +373,47 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
         {/* Dynamic Panel Content */}
         <div className="space-y-6">
           {showSignUpForm ? (
-            /* Sign Up Form - Take user directly to onboarding form after authenticating with Google */
+            /* Sign Up Form - Take user directly to onboarding form after authenticating with Password or Google */
             <form onSubmit={handleSignUpSubmit} className="space-y-5 animate-fade-in" id="signup-form">
               <div className="text-center space-y-1">
                 <h2 className="text-sm font-bold text-slate-800 flex items-center justify-center gap-1.5">
                   <Sparkles size={16} className="text-indigo-600 animate-pulse" /> Complete Onboarding
                 </h2>
                 <p className="text-xs text-slate-500 leading-relaxed max-w-xs mx-auto">
-                  Enter the email address where you received your invitation to begin, then link your Google account.
+                  Enter the email address where you received your invitation to begin, and choose your account credentials.
                 </p>
+              </div>
+
+              {/* Toggle Auth Method (Password vs Google) */}
+              <div className="grid grid-cols-2 p-1 bg-slate-100 rounded-xl border border-slate-200/60 text-[11px] font-bold" id="signup-method-tabs">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAuthMethod('password');
+                    setLoginError(null);
+                  }}
+                  className={`py-1.5 rounded-lg transition-all cursor-pointer text-center ${
+                    authMethod === 'password'
+                      ? 'bg-white text-slate-900 shadow-xs border border-slate-200/40'
+                      : 'text-slate-500 hover:text-slate-700'
+                  }`}
+                >
+                  Password Setup
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAuthMethod('google');
+                    setLoginError(null);
+                  }}
+                  className={`py-1.5 rounded-lg transition-all cursor-pointer text-center ${
+                    authMethod === 'google'
+                      ? 'bg-white text-slate-900 shadow-xs border border-slate-200/40'
+                      : 'text-slate-500 hover:text-slate-700'
+                  }`}
+                >
+                  Google Account Link
+                </button>
               </div>
 
               <div className="space-y-1.5">
@@ -283,6 +433,44 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
                 </div>
               </div>
 
+              {authMethod === 'password' && (
+                <>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+                      Choose Password
+                    </label>
+                    <div className="relative">
+                      <Lock size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                      <input
+                        type="password"
+                        required
+                        placeholder="Min. 6 characters"
+                        value={signUpPassword}
+                        onChange={(e) => setSignUpPassword(e.target.value)}
+                        className="w-full pl-10 pr-4 py-3 text-sm border border-slate-200 rounded-xl focus:border-indigo-500 focus:outline-none bg-slate-50/50"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+                      Confirm Password
+                    </label>
+                    <div className="relative">
+                      <Lock size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                      <input
+                        type="password"
+                        required
+                        placeholder="Verify your password"
+                        value={signUpConfirmPassword}
+                        onChange={(e) => setSignUpConfirmPassword(e.target.value)}
+                        className="w-full pl-10 pr-4 py-3 text-sm border border-slate-200 rounded-xl focus:border-indigo-500 focus:outline-none bg-slate-50/50"
+                      />
+                    </div>
+                  </div>
+                </>
+              )}
+
               <button
                 type="submit"
                 disabled={isLoading}
@@ -290,6 +478,11 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
               >
                 {isLoading ? (
                   <span className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                ) : authMethod === 'password' ? (
+                  <>
+                    <span>Verify & Register Account</span>
+                    <ArrowRight size={14} />
+                  </>
                 ) : (
                   <>
                     <span>Verify & Continue with Google</span>
@@ -301,47 +494,102 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
               <div className="p-3.5 bg-indigo-50/50 border border-indigo-100/50 rounded-2xl text-[11px] leading-relaxed text-indigo-950 flex gap-2">
                 <HelpCircle size={14} className="text-indigo-600 shrink-0 mt-0.5" />
                 <div>
-                  To activate your account, you'll first sign in with any Google Account. This secures your login and prevents email mismatch issues.
+                  {authMethod === 'password' 
+                    ? "Setting up an email and password secures your login natively without needing external Google account links."
+                    : "To activate your account, you'll first sign in with any Google Account. This secures your login and prevents email mismatch issues."}
                 </div>
               </div>
             </form>
           ) : (
-            /* Log In Form - Takes you straight to dashboard or redirects back to sign-up */
+            /* Log In Form - Allows email/password or Google login */
             <div className="space-y-6 animate-fade-in" id="login-form">
               <div className="text-center space-y-1">
                 <h2 className="text-sm font-bold text-slate-800">Staff & Admin Portal Access</h2>
-                <p className="text-xs text-slate-400">Sign in securely with your Google Account to manage shifts and invoices</p>
+                <p className="text-xs text-slate-400 font-medium">Access your shifts, time clock, and payroll invoices</p>
+              </div>
+
+              <form onSubmit={handleEmailPasswordLogin} className="space-y-4">
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+                    Email Address
+                  </label>
+                  <div className="relative">
+                    <Mail size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input
+                      type="email"
+                      required
+                      placeholder="name@example.com"
+                      value={loginEmail}
+                      onChange={(e) => setLoginEmail(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2.5 text-sm border border-slate-200 rounded-xl focus:border-indigo-500 focus:outline-none bg-slate-50/50"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+                    Password
+                  </label>
+                  <div className="relative">
+                    <Lock size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input
+                      type="password"
+                      required
+                      placeholder="••••••••"
+                      value={loginPassword}
+                      onChange={(e) => setLoginPassword(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2.5 text-sm border border-slate-200 rounded-xl focus:border-indigo-500 focus:outline-none bg-slate-50/50"
+                    />
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isLoading}
+                  className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 active:scale-98 text-white font-bold text-sm rounded-xl shadow-md shadow-indigo-600/15 hover:shadow-lg transition-all duration-200 cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                  {isLoading ? (
+                    <span className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                  ) : (
+                    <>
+                      <LogIn size={15} />
+                      <span>Log In with Email & Password</span>
+                    </>
+                  )}
+                </button>
+              </form>
+
+              <div className="relative flex py-1 items-center">
+                <div className="flex-grow border-t border-slate-200/60"></div>
+                <span className="flex-shrink mx-4 text-[10px] text-slate-400 font-bold uppercase tracking-wider">or continue with</span>
+                <div className="flex-grow border-t border-slate-200/60"></div>
               </div>
 
               <button
                 type="button"
                 onClick={handleGoogleLogin}
                 disabled={isLoading}
-                className="w-full py-3.5 bg-slate-900 hover:bg-slate-800 text-white font-semibold text-sm rounded-xl transition-all shadow-md shadow-slate-900/10 cursor-pointer flex items-center justify-center gap-3 active:scale-98 disabled:opacity-50"
+                className="w-full py-3 bg-white border border-slate-200 hover:bg-slate-50 hover:border-slate-300 text-slate-700 font-bold text-sm rounded-xl transition-all flex items-center justify-center gap-3 active:scale-98 disabled:opacity-50 shadow-xs cursor-pointer"
               >
-                {isLoading ? (
-                  <span className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-                ) : (
-                  <svg className="w-5 h-5" viewBox="0 0 24 24">
-                    <path
-                      fill="currentColor"
-                      d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                    />
-                    <path
-                      fill="currentColor"
-                      d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                    />
-                    <path
-                      fill="currentColor"
-                      d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
-                    />
-                    <path
-                      fill="currentColor"
-                      d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
-                    />
-                  </svg>
-                )}
-                {isLoading ? 'Connecting...' : 'Sign In with Google'}
+                <svg className="w-4 h-4" viewBox="0 0 24 24">
+                  <path
+                    fill="#4285F4"
+                    d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                  />
+                  <path
+                    fill="#34A853"
+                    d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                  />
+                  <path
+                    fill="#FBBC05"
+                    d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
+                  />
+                  <path
+                    fill="#EA4335"
+                    d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
+                  />
+                </svg>
+                <span>Google Single Sign-On</span>
               </button>
 
               <div className="pt-2 text-center border-t border-slate-100">

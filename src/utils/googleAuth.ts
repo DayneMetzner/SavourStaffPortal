@@ -12,7 +12,9 @@ import {
   GoogleAuthProvider, 
   onAuthStateChanged, 
   User,
-  signOut
+  signOut,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword
 } from 'firebase/auth';
 import firebaseConfig from '../../firebase-applet-config.json';
 
@@ -305,6 +307,28 @@ export const appendRowsToSpreadsheet = async (
     return await response.json();
   } catch (error) {
     console.error('Failed to append rows to spreadsheet:', error);
+    throw error;
+  }
+};
+
+// Sign in with email and password
+export const loginWithEmailPassword = async (email: string, password: string): Promise<User> => {
+  try {
+    const result = await signInWithEmailAndPassword(auth, email, password);
+    return result.user;
+  } catch (error: any) {
+    console.error('Email Sign-In Error:', error);
+    throw error;
+  }
+};
+
+// Register with email and password
+export const registerWithEmailPassword = async (email: string, password: string): Promise<User> => {
+  try {
+    const result = await createUserWithEmailAndPassword(auth, email, password);
+    return result.user;
+  } catch (error: any) {
+    console.error('Email Sign-Up Error:', error);
     throw error;
   }
 };
