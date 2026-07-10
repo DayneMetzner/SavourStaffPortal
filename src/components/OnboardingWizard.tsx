@@ -158,14 +158,28 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-300">Invited Email Address</label>
+                <label className="text-xs font-bold text-slate-300">Google Account Email (Your Login)</label>
                 <input
                   type="email"
                   disabled
                   value={email}
-                  className="w-full px-3.5 py-2 text-sm bg-slate-900/50 border border-slate-700 rounded-xl text-slate-400 cursor-not-allowed"
+                  className="w-full px-3.5 py-2 text-sm bg-slate-900/50 border border-slate-700 rounded-xl text-emerald-400 font-semibold cursor-not-allowed"
                 />
+                <span className="text-[10px] text-emerald-400/80 block font-semibold">✓ Verified Google login email</span>
               </div>
+
+              {sessionStorage.getItem('savour_pending_invited_email') && sessionStorage.getItem('savour_pending_invited_email')?.toLowerCase().trim() !== email.toLowerCase().trim() && (
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-300">Linked Invitation Email</label>
+                  <input
+                    type="email"
+                    disabled
+                    value={sessionStorage.getItem('savour_pending_invited_email') || ''}
+                    className="w-full px-3.5 py-2 text-sm bg-slate-900/50 border border-slate-700 rounded-xl text-indigo-400 font-semibold cursor-not-allowed"
+                  />
+                  <span className="text-[10px] text-indigo-400/80 block font-semibold">Associated invitation record</span>
+                </div>
+              )}
 
               <div className="space-y-1">
                 <label className="text-xs font-bold text-slate-300">Full Legal Name *</label>

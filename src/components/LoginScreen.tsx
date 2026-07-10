@@ -115,7 +115,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
     }
   };
 
-  const handleSignUpSubmit = (e: React.FormEvent) => {
+  const handleSignUpSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoginError(null);
     const cleanEmail = signUpEmail.trim().toLowerCase();
@@ -131,9 +131,41 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
       return;
     }
 
-    // Direct entry to onboarding wizard without being blocked
-    if (onStartOnboarding) {
-      onStartOnboarding(cleanEmail);
+    setIsLoading(true);
+    try {
+      // Save invited email to sessionStorage for reference in onboarding wizard
+      sessionStorage.setItem('savour_pending_invited_email', cleanEmail);
+      
+      const result = await loginWithGoogle();
+      if (result) {
+        const authenticatedEmail = result.user.email?.toLowerCase().trim();
+        if (!authenticatedEmail) {
+          throw new Error("Unable to retrieve email from your Google Account.");
+        }
+
+        // Check if already registered with this Google Account email
+        const alreadyRegisteredGoogle = staffProfiles.some(
+          (p) => p.email.toLowerCase().trim() === authenticatedEmail
+        );
+        if (alreadyRegisteredGoogle) {
+          const matchedProfile = staffProfiles.find(
+            (p) => p.email.toLowerCase().trim() === authenticatedEmail
+          );
+          const role = matchedProfile?.role || 'staff';
+          onLoginSuccess(authenticatedEmail, role, result.accessToken);
+          return;
+        }
+
+        // Proceed to onboarding using their authenticated Google email
+        if (onStartOnboarding) {
+          onStartOnboarding(authenticatedEmail);
+        }
+      }
+    } catch (err: any) {
+      console.error(err);
+      setLoginError(err.message || 'Google Authentication failed. Please try again.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -223,14 +255,14 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
         {/* Dynamic Panel Content */}
         <div className="space-y-6">
           {showSignUpForm ? (
-            /* Sign Up Form - Take user directly to onboarding form without being blocked */
+            /* Sign Up Form - Take user directly to onboarding form after authenticating with Google */
             <form onSubmit={handleSignUpSubmit} className="space-y-5 animate-fade-in" id="signup-form">
               <div className="text-center space-y-1">
                 <h2 className="text-sm font-bold text-slate-800 flex items-center justify-center gap-1.5">
                   <Sparkles size={16} className="text-indigo-600 animate-pulse" /> Complete Onboarding
                 </h2>
                 <p className="text-xs text-slate-500 leading-relaxed max-w-xs mx-auto">
-                  Enter the email address where you received your invitation to begin the registration process.
+                  Enter the email address where you received your invitation to begin, then link your Google account.
                 </p>
               </div>
 
@@ -253,16 +285,23 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
 
               <button
                 type="submit"
-                className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-500 active:scale-98 text-white font-extrabold text-sm rounded-xl shadow-md shadow-indigo-600/25 hover:shadow-lg hover:shadow-indigo-600/40 transition-all duration-200 cursor-pointer flex items-center justify-center gap-2"
+                disabled={isLoading}
+                className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-500 active:scale-98 text-white font-extrabold text-sm rounded-xl shadow-md shadow-indigo-600/25 hover:shadow-lg hover:shadow-indigo-600/40 transition-all duration-200 cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50"
               >
-                <span>Begin Registration Form</span>
-                <ArrowRight size={14} />
+                {isLoading ? (
+                  <span className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                ) : (
+                  <>
+                    <span>Verify & Continue with Google</span>
+                    <ArrowRight size={14} />
+                  </>
+                )}
               </button>
 
               <div className="p-3.5 bg-indigo-50/50 border border-indigo-100/50 rounded-2xl text-[11px] leading-relaxed text-indigo-950 flex gap-2">
                 <HelpCircle size={14} className="text-indigo-600 shrink-0 mt-0.5" />
                 <div>
-                  No Google account or password needed to complete this step. Your details will be verified immediately.
+                  To activate your account, you'll first sign in with any Google Account. This secures your login and prevents email mismatch issues.
                 </div>
               </div>
             </form>

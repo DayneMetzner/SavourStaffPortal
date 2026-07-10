@@ -1130,6 +1130,13 @@ export default function App() {
     // Swapping to newly registered staff member's view
     setCurrentProfileId(profileData.id);
 
+    // Immediately authenticate if Google user email matches the profile email
+    if (googleUser && googleUser.email?.toLowerCase().trim() === profileData.email.toLowerCase().trim()) {
+      setIsAuthenticated(true);
+    } else {
+      setIsAuthenticated(true); // Always authenticate them upon successful completion of the onboarding form they just authenticated for
+    }
+
     await saveStaffProfileToFirestore(profileData);
     await markInvitationRegisteredInFirestore(profileData.email);
   };
