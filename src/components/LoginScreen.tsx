@@ -69,9 +69,11 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
           const role = matchedProfile.role || 'staff';
           onLoginSuccess(authenticatedEmail, role, result.accessToken);
         } else {
-          // Not registered
+          // Not registered - Notify and redirect to sign up page
+          setSignUpEmail(authenticatedEmail);
+          setShowSignUpForm(true);
           setLoginError(
-            `The Google Account "${authenticatedEmail}" is not registered on this portal. If you're a new candidate, please click the secure onboarding registration link sent in your invitation email first.`
+            `The email "${authenticatedEmail}" is not signed up yet. We have redirected you to the sign-up page. Please enter your email and click verify to complete your onboarding.`
           );
         }
       }
@@ -292,16 +294,16 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
 
               {/* Invitation Sign Up Action */}
               <div className="pt-4 border-t border-slate-100 flex flex-col gap-2.5 text-center">
-                <div className="text-[11px] text-slate-500 font-semibold">Received an invitation to register?</div>
+                <div className="text-xs text-slate-600 font-bold">Received an invitation to register?</div>
                 <button
                   type="button"
                   onClick={() => {
                     setShowSignUpForm(true);
                     setLoginError(null);
                   }}
-                  className="w-full py-2.5 bg-indigo-50 hover:bg-indigo-100 active:scale-95 text-indigo-700 font-extrabold text-xs rounded-xl shadow-xs transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                  className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-500 active:scale-98 text-white font-extrabold text-sm rounded-xl shadow-md shadow-indigo-600/25 hover:shadow-lg hover:shadow-indigo-600/40 transition-all duration-200 cursor-pointer flex items-center justify-center gap-2 border border-indigo-500/30"
                 >
-                  <Sparkles size={13} />
+                  <Sparkles size={15} />
                   Create Staff Account / Sign Up
                 </button>
               </div>

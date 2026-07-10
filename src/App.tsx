@@ -877,16 +877,6 @@ export default function App() {
     const cleanEmail = email.trim().toLowerCase();
     if (!cleanEmail) return;
 
-    if (staffProfiles.some((p) => p.email.toLowerCase() === cleanEmail)) {
-      alert(`Staff member with email "${cleanEmail}" is already registered.`);
-      return;
-    }
-
-    if (invitations.some((i) => i.email.toLowerCase() === cleanEmail)) {
-      alert(`An invitation has already been sent to "${cleanEmail}".`);
-      return;
-    }
-
     const onboardingToken = Math.random().toString(36).substring(2, 10);
     const newInv: Invitation = {
       email: cleanEmail,
@@ -894,7 +884,11 @@ export default function App() {
       status: 'invited'
     };
 
-    const updated = [...invitations, newInv];
+    const exists = invitations.some((i) => i.email.toLowerCase().trim() === cleanEmail);
+    const updated = exists
+      ? invitations.map((i) => i.email.toLowerCase().trim() === cleanEmail ? { ...i, invitedAt: new Date().toISOString(), status: 'invited' as const } : i)
+      : [...invitations, newInv];
+
     setInvitations(updated);
     saveData('fest_invitations', updated);
 
