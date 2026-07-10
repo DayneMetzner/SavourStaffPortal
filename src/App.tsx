@@ -113,62 +113,97 @@ export default function App() {
       return;
     }
 
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        setGoogleUser(user);
-        const email = user.email?.toLowerCase().trim();
+    let isSubscribed = true;
 
-        // Dynamically load the newest staff profiles from Firestore to prevent stale local whitelists
-        let currentStaffList: StaffProfile[] = [];
-        try {
-          const live = await getStaffProfilesFromFirestore();
-          if (live && live.length > 0) {
-            const hasAdmin = live.some(p => p.role === 'admin' || (p.email && ADMIN_EMAILS.includes(p.email.toLowerCase().trim())));
-            const merged = hasAdmin ? live : [INITIAL_STAFF.find(p => p.role === 'admin') || INITIAL_STAFF[0], ...live];
-            setStaffProfiles(merged);
-            currentStaffList = merged;
-          } else {
+    const checkRedirectAndState = async () => {
+      try {
+        const { getRedirectResult, GoogleAuthProvider } = await import('firebase/auth');
+        const result = await getRedirectResult(auth);
+        if (result && isSubscribed) {
+          const credential = GoogleAuthProvider.credentialFromResult(result);
+          if (credential?.accessToken) {
+            sessionStorage.setItem('savour_google_token', credential.accessToken);
+            setGoogleToken(credential.accessToken);
+          }
+        }
+      } catch (err) {
+        console.error("Redirect credential retrieval failed:", err);
+      }
+
+      if (!isSubscribed) return;
+
+      const unsubscribe = onAuthStateChanged(auth, async (user) => {
+        if (!isSubscribed) return;
+        if (user) {
+          setGoogleUser(user);
+          const email = user.email?.toLowerCase().trim();
+
+          // Dynamically load the newest staff profiles from Firestore to prevent stale local whitelists
+          let currentStaffList: StaffProfile[] = [];
+          try {
+            const live = await getStaffProfilesFromFirestore();
+            if (live && live.length > 0) {
+              const hasAdmin = live.some(p => p.role === 'admin' || (p.email && ADMIN_EMAILS.includes(p.email.toLowerCase().trim())));
+              const merged = hasAdmin ? live : [INITIAL_STAFF.find(p => p.role === 'admin') || INITIAL_STAFF[0], ...live];
+              setStaffProfiles(merged);
+              currentStaffList = merged;
+            } else {
+              setStaffProfiles(INITIAL_STAFF);
+              currentStaffList = INITIAL_STAFF;
+            }
+          } catch (e) {
+            console.error("Auth state change: could not query Firestore 'users' whitelists:", e);
             setStaffProfiles(INITIAL_STAFF);
             currentStaffList = INITIAL_STAFF;
           }
-        } catch (e) {
-          console.error("Auth state change: could not query Firestore 'users' whitelists:", e);
-          setStaffProfiles(INITIAL_STAFF);
-          currentStaffList = INITIAL_STAFF;
-        }
 
-        if (email && ADMIN_EMAILS.includes(email)) {
-          setIsAuthenticated(true);
-          const adminProfile = currentStaffList.find(p => p.email.toLowerCase().trim() === email) || 
-                               currentStaffList.find(p => p.role === 'admin') || 
-                               INITIAL_STAFF.find(p => p.role === 'admin');
-          if (adminProfile) {
-            setCurrentProfileId(adminProfile.id);
+          if (email && ADMIN_EMAILS.includes(email)) {
+            setIsAuthenticated(true);
+            const adminProfile = currentStaffList.find(p => p.email.toLowerCase().trim() === email) || 
+                                 currentStaffList.find(p => p.role === 'admin') || 
+                                 INITIAL_STAFF.find(p => p.role === 'admin');
+            if (adminProfile) {
+              setCurrentProfileId(adminProfile.id);
+            }
+          } else {
+            // Check if registered staff member
+            const matched = currentStaffList.find(p => p.email.toLowerCase().trim() === email);
+            if (matched) {
+              setIsAuthenticated(true);
+              setCurrentProfileId(matched.id);
+            } else {
+              // Not registered staff member!
+              setIsAuthenticated(false);
+              setCurrentProfileId('');
+            }
           }
         } else {
-          // Check if registered staff member
-          const matched = currentStaffList.find(p => p.email.toLowerCase().trim() === email);
-          if (matched) {
-            setIsAuthenticated(true);
-            setCurrentProfileId(matched.id);
-          } else {
-            // Not registered staff member!
+          setGoogleUser(null);
+          // Only set authenticated false if there is no admin bypass session active
+          if (sessionStorage.getItem('savour_hq_session') !== 'admin') {
             setIsAuthenticated(false);
             setCurrentProfileId('');
           }
         }
-      } else {
-        setGoogleUser(null);
-        // Only set authenticated false if there is no admin bypass session active
-        if (sessionStorage.getItem('savour_hq_session') !== 'admin') {
-          setIsAuthenticated(false);
-          setCurrentProfileId('');
-        }
+        setSessionLoading(false);
+      });
+
+      return unsubscribe;
+    };
+
+    let unsubFn: (() => void) | undefined;
+    checkRedirectAndState().then(unsub => {
+      if (unsub) {
+        unsubFn = unsub;
       }
-      setSessionLoading(false);
     });
 
-    return () => unsubscribe();
+    return () => {
+      isSubscribed = false;
+      if (unsubFn) {
+        unsubFn();
+      }
+    };
   }, []);
 
   // 2. Real-time Firestore synchronizer

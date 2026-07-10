@@ -7,6 +7,8 @@ import { initializeApp, getApps, getApp } from 'firebase/app';
 import { 
   getAuth, 
   signInWithPopup, 
+  signInWithRedirect,
+  getRedirectResult,
   GoogleAuthProvider, 
   onAuthStateChanged, 
   User,
@@ -25,6 +27,15 @@ export const googleProvider = new GoogleAuthProvider();
 export const googleAdminProvider = new GoogleAuthProvider();
 googleAdminProvider.addScope('https://www.googleapis.com/auth/spreadsheets');
 googleAdminProvider.addScope('https://www.googleapis.com/auth/gmail.send');
+
+// Helper to check if the user is on mobile or using an in-app browser (e.g. Gmail inside-app viewer, Instagram, FB)
+export const isMobileOrInAppBrowser = (): boolean => {
+  if (typeof window === 'undefined' || !window.navigator) return false;
+  const ua = window.navigator.userAgent || '';
+  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
+  const isInApp = /FB_IAB|FBAN|FBAV|Instagram|Twitter|Slack|Snapchat|Line|WhatsApp|Gmail|GSA|Teams|Pinterest/i.test(ua);
+  return isMobile || isInApp;
+};
 
 // In-memory token cache
 let cachedAccessToken: string | null = null;
@@ -51,17 +62,39 @@ export const initGoogleAuth = (
   });
 };
 
-// Sign in with Google Popup
+// Sign in with Google with popup or fallback redirect
 export const loginWithGoogle = async (): Promise<{ user: User; accessToken: string } | null> => {
   try {
     isSigningIn = true;
-    const result = await signInWithPopup(auth, googleProvider);
-    const credential = GoogleAuthProvider.credentialFromResult(result);
-    if (!credential?.accessToken) {
-      throw new Error('Failed to retrieve Google OAuth access token.');
+    
+    // For mobile/in-app browsers, go straight to redirect to avoid blocked popup states
+    if (isMobileOrInAppBrowser()) {
+      console.log('Mobile or in-app browser detected. Proceeding with redirect sign-in.');
+      await signInWithRedirect(auth, googleProvider);
+      return null;
     }
-    cachedAccessToken = credential.accessToken;
-    return { user: result.user, accessToken: cachedAccessToken };
+
+    try {
+      const result = await signInWithPopup(auth, googleProvider);
+      const credential = GoogleAuthProvider.credentialFromResult(result);
+      if (!credential?.accessToken) {
+        throw new Error('Failed to retrieve Google OAuth access token.');
+      }
+      cachedAccessToken = credential.accessToken;
+      return { user: result.user, accessToken: cachedAccessToken };
+    } catch (popupError: any) {
+      console.warn('Popup blocked, closed, or failed. Attempting fallback redirect:', popupError);
+      if (
+        popupError.code === 'auth/popup-blocked' ||
+        popupError.code === 'auth/operation-not-supported' ||
+        popupError.code === 'auth/popup-closed-by-user' ||
+        popupError.code === 'auth/cancelled-popup-request'
+      ) {
+        await signInWithRedirect(auth, googleProvider);
+        return null;
+      }
+      throw popupError;
+    }
   } catch (error) {
     console.error('Google Sign-In Error:', error);
     throw error;
@@ -70,17 +103,39 @@ export const loginWithGoogle = async (): Promise<{ user: User; accessToken: stri
   }
 };
 
-// Sign in with Google Popup with admin scopes
+// Sign in with Google with admin scopes
 export const loginWithGoogleAdmin = async (): Promise<{ user: User; accessToken: string } | null> => {
   try {
     isSigningIn = true;
-    const result = await signInWithPopup(auth, googleAdminProvider);
-    const credential = GoogleAuthProvider.credentialFromResult(result);
-    if (!credential?.accessToken) {
-      throw new Error('Failed to retrieve Google OAuth access token for administrative tasks.');
+
+    // For mobile/in-app browsers, go straight to redirect to avoid blocked popup states
+    if (isMobileOrInAppBrowser()) {
+      console.log('Mobile or in-app browser detected for admin operations. Proceeding with redirect.');
+      await signInWithRedirect(auth, googleAdminProvider);
+      return null;
     }
-    cachedAccessToken = credential.accessToken;
-    return { user: result.user, accessToken: cachedAccessToken };
+
+    try {
+      const result = await signInWithPopup(auth, googleAdminProvider);
+      const credential = GoogleAuthProvider.credentialFromResult(result);
+      if (!credential?.accessToken) {
+        throw new Error('Failed to retrieve Google OAuth access token for administrative tasks.');
+      }
+      cachedAccessToken = credential.accessToken;
+      return { user: result.user, accessToken: cachedAccessToken };
+    } catch (popupError: any) {
+      console.warn('Admin popup blocked, closed, or failed. Attempting fallback redirect:', popupError);
+      if (
+        popupError.code === 'auth/popup-blocked' ||
+        popupError.code === 'auth/operation-not-supported' ||
+        popupError.code === 'auth/popup-closed-by-user' ||
+        popupError.code === 'auth/cancelled-popup-request'
+      ) {
+        await signInWithRedirect(auth, googleAdminProvider);
+        return null;
+      }
+      throw popupError;
+    }
   } catch (error) {
     console.error('Google Admin Sign-In Error:', error);
     throw error;
