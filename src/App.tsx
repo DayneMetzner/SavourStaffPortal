@@ -206,10 +206,13 @@ export default function App() {
     };
   }, []);
 
-  // 2a. Real-time Firestore synchronizer for public, read-only data (runs even when unauthenticated)
+  // 2a. Real-time Firestore synchronizer for staff profiles and invitations (runs only when Google authenticated)
   useEffect(() => {
+    if (!googleUser) {
+      return;
+    }
     // Check if we are running in passcode bypass mode (no Google authentication session in Firebase Auth)
-    const isPasscodeMode = sessionStorage.getItem('savour_hq_session') === 'admin' && !googleUser;
+    const isPasscodeMode = sessionStorage.getItem('savour_hq_session') === 'admin';
     if (isPasscodeMode) {
       return;
     }
