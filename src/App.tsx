@@ -206,7 +206,54 @@ export default function App() {
     };
   }, []);
 
-  // 2. Real-time Firestore synchronizer
+  // 2a. Real-time Firestore synchronizer for public, read-only data (runs even when unauthenticated)
+  useEffect(() => {
+    // Check if we are running in passcode bypass mode (no Google authentication session in Firebase Auth)
+    const isPasscodeMode = sessionStorage.getItem('savour_hq_session') === 'admin' && !googleUser;
+    if (isPasscodeMode) {
+      return;
+    }
+
+    const unsubProfiles = subscribeToStaffProfiles(
+      (data) => {
+        if (data.length > 0) {
+          const hasAdmin = data.some(p => p.role === 'admin' || (p.email && ADMIN_EMAILS.includes(p.email.toLowerCase().trim())));
+          if (!hasAdmin) {
+            const defaultAdmin = INITIAL_STAFF.find(p => p.role === 'admin') || INITIAL_STAFF[0];
+            const updated = [defaultAdmin, ...data];
+            setStaffProfiles(updated);
+            saveData('fest_staff', updated);
+          } else {
+            setStaffProfiles(data);
+            saveData('fest_staff', data);
+          }
+        } else {
+          setStaffProfiles(INITIAL_STAFF);
+          saveData('fest_staff', INITIAL_STAFF);
+        }
+      },
+      (err) => {
+        console.warn('Staff database sync warning:', err);
+      }
+    );
+
+    const unsubInvitations = subscribeToInvitations(
+      (data) => {
+        setInvitations(data);
+        saveData('fest_invitations', data);
+      },
+      (err) => {
+        console.warn('Invitations database sync warning:', err);
+      }
+    );
+
+    return () => {
+      unsubProfiles();
+      unsubInvitations();
+    };
+  }, [googleUser]);
+
+  // 2b. Real-time Firestore synchronizer for private, restricted data
   useEffect(() => {
     if (!isAuthenticated) return;
 
@@ -247,30 +294,6 @@ export default function App() {
       }
     );
 
-    const unsubProfiles = subscribeToStaffProfiles(
-      (data) => {
-        if (data.length > 0) {
-          const hasAdmin = data.some(p => p.role === 'admin' || (p.email && ADMIN_EMAILS.includes(p.email.toLowerCase().trim())));
-          if (!hasAdmin) {
-            const defaultAdmin = INITIAL_STAFF.find(p => p.role === 'admin') || INITIAL_STAFF[0];
-            setStaffProfiles([defaultAdmin, ...data]);
-          } else {
-            setStaffProfiles(data);
-          }
-        } else {
-          // Fallback to preserve the default Dayne admin if Firestore users table is completely empty
-          setStaffProfiles(INITIAL_STAFF);
-        }
-        setDbConnected(true);
-        setDbError(null);
-      },
-      (err) => {
-        console.error('Staff database sync warning:', err);
-        setDbConnected(false);
-        setDbError(err.message || String(err));
-      }
-    );
-
     const unsubTimeLogs = subscribeToTimeLogs(
       (data) => {
         setTimeLogs(data);
@@ -279,19 +302,6 @@ export default function App() {
       },
       (err) => {
         console.error('TimeLogs database sync warning:', err);
-        setDbConnected(false);
-        setDbError(err.message || String(err));
-      }
-    );
-
-    const unsubInvitations = subscribeToInvitations(
-      (data) => {
-        setInvitations(data);
-        setDbConnected(true);
-        setDbError(null);
-      },
-      (err) => {
-        console.error('Invitations database sync warning:', err);
         setDbConnected(false);
         setDbError(err.message || String(err));
       }
@@ -313,9 +323,7 @@ export default function App() {
     return () => {
       unsubEvents();
       unsubShifts();
-      unsubProfiles();
       unsubTimeLogs();
-      unsubInvitations();
       unsubInvoices();
     };
   }, [isAuthenticated, googleUser]);

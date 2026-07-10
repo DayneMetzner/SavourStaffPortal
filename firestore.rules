@@ -80,7 +80,7 @@ service cloud.firestore {
 
     // USERS COLLECTION
     match /users/{userId} {
-      allow read: if isSignedIn();
+      allow read: if true;
       allow write: if isSignedIn();
     }
 
@@ -104,7 +104,8 @@ service cloud.firestore {
 
     // INVITATIONS COLLECTION
     match /invitations/{inviteId} {
-      allow read, write: if isSignedIn();
+      allow read: if true;
+      allow write: if isSignedIn();
     }
 
     // INVOICES COLLECTION
