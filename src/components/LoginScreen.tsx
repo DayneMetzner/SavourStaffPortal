@@ -50,6 +50,24 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
             return;
           }
 
+          // Check if registered in Firestore profiles first
+          let isRegistered = false;
+          try {
+            const { getStaffProfilesFromFirestore } = await import('../utils/firestoreData');
+            const liveProfiles = await getStaffProfilesFromFirestore();
+            isRegistered = liveProfiles.some(
+              (p) => p.email.toLowerCase().trim() === cleanEmail
+            );
+          } catch (err) {
+            console.warn("Frictionless routing: failed to query Firestore for live profiles:", err);
+          }
+
+          if (!isRegistered) {
+            isRegistered = staffProfiles.some(
+              (p) => p.email.toLowerCase().trim() === cleanEmail
+            );
+          }
+
           // Check invitation directly by email safeId document path
           let inv = null;
           try {
@@ -61,22 +79,10 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
 
           if (!active) return;
 
-          if (inv) {
-            if (inv.status === 'registered') {
-              setStep('login');
-            } else {
-              setStep('register');
-            }
+          if (isRegistered || (inv && inv.status === 'registered')) {
+            setStep('login');
           } else {
-            // Local fallback
-            const isRegisteredLocally = staffProfiles.some(
-              (p) => p.email.toLowerCase().trim() === cleanEmail
-            );
-            if (isRegisteredLocally) {
-              setStep('login');
-            } else {
-              setStep('not_found');
-            }
+            setStep('register');
           }
         }
       } catch (e) {
@@ -110,6 +116,24 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
         return;
       }
 
+      // Check if registered in Firestore profiles first
+      let isRegistered = false;
+      try {
+        const { getStaffProfilesFromFirestore } = await import('../utils/firestoreData');
+        const liveProfiles = await getStaffProfilesFromFirestore();
+        isRegistered = liveProfiles.some(
+          (p) => p.email.toLowerCase().trim() === emailClean
+        );
+      } catch (err) {
+        console.warn("Check email: failed to query Firestore for live profiles:", err);
+      }
+
+      if (!isRegistered) {
+        isRegistered = staffProfiles.some(
+          (p) => p.email.toLowerCase().trim() === emailClean
+        );
+      }
+
       // Check invitation directly by email safeId document path
       let inv = null;
       try {
@@ -119,22 +143,10 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
         console.warn("Check email: failed to query Firestore for invitation:", dbErr);
       }
 
-      if (inv) {
-        if (inv.status === 'registered') {
-          setStep('login');
-        } else {
-          setStep('register');
-        }
+      if (isRegistered || (inv && inv.status === 'registered')) {
+        setStep('login');
       } else {
-        // Fallback checks
-        const isRegisteredLocally = staffProfiles.some(
-          (p) => p.email.toLowerCase().trim() === emailClean
-        );
-        if (isRegisteredLocally) {
-          setStep('login');
-        } else {
-          setStep('not_found');
-        }
+        setStep('register');
       }
     } catch (err: any) {
       console.error("Check email error:", err);
@@ -576,54 +588,38 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
             <div className="space-y-5 animate-fade-in" id="no-invitation-form">
               <div className="text-center space-y-1.5">
                 <h2 className="text-sm font-extrabold text-slate-800">
-                  No Invitation Found
+                  Select Action
                 </h2>
                 <p className="text-xs text-slate-500 leading-relaxed">
-                  We couldn't find an active staff invitation or registered account for this email address.
+                  Choose whether you would like to log in to an existing account or register a new account for <span className="font-semibold text-indigo-600 font-mono break-all">{email}</span>.
                 </p>
               </div>
 
-              <div className="p-4 bg-amber-50 border border-amber-100 rounded-2xl text-amber-900 text-xs leading-relaxed flex flex-col gap-2 font-medium">
-                <p>
-                  Your entered email address is: <strong className="font-semibold block mt-0.5 text-amber-950 font-mono text-center">{email}</strong>
-                </p>
-                <p>
-                  Please make sure you are entering the exact email address where you received your invitation. If you are a new staff member, your administrator must invite you via the management console before you can register.
-                </p>
-              </div>
-
-              {/* Secure bypass escape hatches */}
-              <div className="pt-3 border-t border-slate-100 space-y-2">
-                <div className="text-center">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                    Database Sync Delay? Bypass Check
-                  </p>
-                </div>
+              <div className="space-y-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setStep('login');
+                    setLoginError(null);
+                    setMessage(null);
+                  }}
+                  className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold text-sm rounded-xl shadow-md shadow-indigo-600/15 hover:shadow-lg transition-all cursor-pointer text-center flex items-center justify-center gap-2"
+                >
+                  <span>Log In to Account</span>
+                  <ArrowRight size={14} />
+                </button>
                 
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setStep('login');
-                      setLoginError(null);
-                      setMessage(null);
-                    }}
-                    className="py-2.5 border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold text-xs rounded-xl transition-all cursor-pointer text-center"
-                  >
-                    Log In anyway
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setStep('register');
-                      setLoginError(null);
-                      setMessage(null);
-                    }}
-                    className="py-2.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-xs rounded-xl transition-all cursor-pointer text-center"
-                  >
-                    Register anyway
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setStep('register');
+                    setLoginError(null);
+                    setMessage(null);
+                  }}
+                  className="w-full py-3.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-sm rounded-xl transition-all cursor-pointer text-center flex items-center justify-center gap-2"
+                >
+                  <span>Register a New Account</span>
+                </button>
               </div>
 
               <button
@@ -633,7 +629,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
                   setLoginError(null);
                   setMessage(null);
                 }}
-                className="w-full py-3 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl transition-all cursor-pointer flex items-center justify-center gap-2 active:scale-98"
+                className="w-full py-3 border border-slate-200 hover:bg-slate-50 text-slate-600 font-bold text-xs rounded-xl transition-all cursor-pointer flex items-center justify-center gap-2 active:scale-98"
               >
                 <ArrowLeft size={13} />
                 <span>Try another email address</span>
