@@ -35,20 +35,43 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
 
   // Extract email or onboardEmail query parameter on mount for frictionless landing page support
   useEffect(() => {
-    try {
-      const params = new URLSearchParams(window.location.search);
-      const emailParam = params.get('email') || params.get('onboardEmail');
-      if (emailParam) {
-        const cleanEmail = emailParam.trim().toLowerCase();
-        setEmail(cleanEmail);
-        
-        // Check if profiles/invitations are loaded or check whenever they load
-        if (staffProfiles.length > 0 || invitations.length > 0) {
-          const isRegistered = staffProfiles.some(
+    let active = true;
+    const loadAndRoute = async () => {
+      try {
+        const params = new URLSearchParams(window.location.search);
+        const emailParam = params.get('email') || params.get('onboardEmail');
+        if (emailParam) {
+          const cleanEmail = emailParam.trim().toLowerCase();
+          setEmail(cleanEmail);
+          setIsLoading(true);
+
+          let currentProfilesList = staffProfiles;
+          let currentInvitationsList = invitations;
+
+          try {
+            const { getStaffProfilesFromFirestore, getInvitationsFromFirestore } = await import('../utils/firestoreData');
+            const [liveProfiles, liveInvs] = await Promise.all([
+              getStaffProfilesFromFirestore(),
+              getInvitationsFromFirestore()
+            ]);
+
+            if (liveProfiles && liveProfiles.length > 0) {
+              currentProfilesList = liveProfiles;
+            }
+            if (liveInvs && liveInvs.length > 0) {
+              currentInvitationsList = liveInvs;
+            }
+          } catch (e) {
+            console.warn("Frictionless routing: failed to load database registries:", e);
+          }
+
+          if (!active) return;
+
+          const isRegistered = currentProfilesList.some(
             (p) => p.email.toLowerCase().trim() === cleanEmail
           ) || ADMIN_EMAILS.includes(cleanEmail);
 
-          const isInvited = invitations.some(
+          const isInvited = currentInvitationsList.some(
             (i) => i.email.toLowerCase().trim() === cleanEmail
           );
 
@@ -56,12 +79,21 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
             setStep('login');
           } else if (isInvited) {
             setStep('register');
+          } else {
+            setStep('not_found');
           }
         }
+      } catch (e) {
+        console.warn("Failed to parse URL query params or auto-route:", e);
+      } finally {
+        if (active) setIsLoading(false);
       }
-    } catch (e) {
-      console.warn("Failed to parse URL query params:", e);
-    }
+    };
+
+    loadAndRoute();
+    return () => {
+      active = false;
+    };
   }, [staffProfiles, invitations]);
 
   const handleCheckEmailSubmit = async (e: React.FormEvent) => {
@@ -77,13 +109,22 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
 
     setIsLoading(true);
     try {
-      // Fetch newest staff profiles from Firestore to prevent stale local checks
+      // Fetch newest staff profiles and invitations from Firestore to prevent stale local checks
       let currentProfilesList = staffProfiles;
+      let currentInvitationsList = invitations;
+
       try {
-        const { getStaffProfilesFromFirestore } = await import('../utils/firestoreData');
-        const live = await getStaffProfilesFromFirestore();
-        if (live && live.length > 0) {
-          currentProfilesList = live;
+        const { getStaffProfilesFromFirestore, getInvitationsFromFirestore } = await import('../utils/firestoreData');
+        const [liveProfiles, liveInvs] = await Promise.all([
+          getStaffProfilesFromFirestore(),
+          getInvitationsFromFirestore()
+        ]);
+
+        if (liveProfiles && liveProfiles.length > 0) {
+          currentProfilesList = liveProfiles;
+        }
+        if (liveInvs && liveInvs.length > 0) {
+          currentInvitationsList = liveInvs;
         }
       } catch (e) {
         console.warn("Check Email: failed to pull live whitelists, using local state:", e);
@@ -94,7 +135,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
       ) || ADMIN_EMAILS.includes(emailClean);
 
       // Check invitations list
-      const isInvited = invitations.some(
+      const isInvited = currentInvitationsList.some(
         (i) => i.email.toLowerCase().trim() === emailClean
       );
 
