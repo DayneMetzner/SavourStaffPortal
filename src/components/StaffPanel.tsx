@@ -7,7 +7,7 @@ import React, { useState, useEffect } from 'react';
 import { StaffProfile, Shift, FestivalEvent, TimeLog, BreakLog, LocationChangeLog, Invoice, InvoiceShift, InvoiceExpense } from '../types';
 import { CodeOfConduct } from './CodeOfConduct';
 import { 
-  User, Calendar, Clock, DollarSign, CheckCircle2, XCircle, AlertCircle, 
+  User, Calendar, Clock, PoundSterling, CheckCircle2, XCircle, AlertCircle, 
   MapPin, Play, Square, Pause, RotateCw, Footprints, Check, Edit2, ShieldAlert,
   Lock, Star, Upload, FileText, Plus, Trash2, Download
 } from 'lucide-react';
@@ -495,7 +495,7 @@ export const StaffPanel: React.FC<StaffPanelProps> = ({
                               <div className="mt-2.5 p-2 bg-slate-100/50 rounded-lg flex items-center justify-between border border-slate-100">
                                 <span className="text-xs text-slate-500 font-semibold">Your Pay Rate:</span>
                                 <span className="font-mono text-sm font-extrabold text-slate-800 flex items-center">
-                                  <DollarSign size={14} className="text-slate-500" />
+                                  <PoundSterling size={14} className="text-slate-500" />
                                   {shift.payRatePerHour.toFixed(2)} {shift.rateType === 'day' ? '/day' : '/hr'}
                                 </span>
                               </div>

@@ -6,7 +6,7 @@
 import React, { useState } from 'react';
 import { FestivalEvent, StaffProfile, Shift, TimeLog, Invitation, Invoice, InvoiceExpense, InvoiceShift } from '../types';
 import { 
-  Calendar, MapPin, Clock, Users, DollarSign, Plus, ArrowRight,
+  Calendar, MapPin, Clock, Users, PoundSterling, Plus, ArrowRight,
   AlertTriangle, CheckCircle, XCircle, Info, ShieldAlert, Award, Footprints, Layers,
   Edit, X, Trash2, Shield, UserPlus, Mail, Star, Check, FileText, Download, Printer,
   CloudLightning, ExternalLink
@@ -782,7 +782,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
           }`}
         >
           <div className="flex items-center gap-2">
-            <DollarSign size={16} />
+            <PoundSterling size={16} />
             Post-Event Clock-ins & Actual Payroll
           </div>
         </button>
@@ -2824,7 +2824,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                                           }}
                                           className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-[11px] rounded-lg transition-all flex items-center gap-1 cursor-pointer shadow-sm"
                                         >
-                                          <DollarSign size={13} /> Show as Paid
+                                          <PoundSterling size={13} /> Show as Paid
                                         </button>
                                       </div>
                                     )}

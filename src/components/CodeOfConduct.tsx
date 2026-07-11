@@ -14,31 +14,54 @@ interface CodeOfConductProps {
 }
 
 export const CODE_OF_CONDUCT_TEXT = `
-FESTIVAL STAFF CODE OF CONDUCT
+FUME Staff Code of Conduct (On-Site Behaviour & Alcohol)
 
-1. PROFESSIONAL CONDUCT & REPRESENTATION
-All staff represent the festival. You must behave professionally, respectfully, and in a welcoming manner toward festival-goers, performers, contractors, and fellow team members. We enforce a zero-tolerance policy for harassment, discrimination, bullying, or disrespectful behavior of any kind.
+This brief applies to all FUME staff, brand ambassadors, contractors and volunteers working on site.
 
-2. SOBRIETY & SUBSTANCE POLICY
-You are strictly forbidden from consuming alcohol or recreational drugs prior to or during your shifts. Any staff member found to be working under the influence of alcohol or prohibited substances will be immediately dismissed from their role and escorted from the festival site.
+1. Behaviour on Site
+• You are representing FUME and BBQ Festivals Ltd from the moment you arrive on site until you leave.
+• We expect you to be switched on, outwardly positive and professional at all times, in front of guests, traders, sponsors, venue staff and each other.
+• Respect the management and venue, follow instructions from managers and security, and keep all areas tidy and safe.
 
-3. PUNCTUALITY, ATTENDANCE & SHIFTS
-Staff must arrive at their designated check-in point at least 15 minutes prior to their scheduled shift start. If you are delayed or unable to work due to emergency, you must notify your Team Leader or the Staff Coordinator immediately. Repeated unexcused lateness may result in shift cancellation.
+2. Alcohol & Substance Policy
+• No alcohol during your shift. This is non-negotiable.
+• At the end of your shift, you are welcome to stay, have a drink and enjoy the event, but:
+  - You must remove all uniform / lanyards / high-vis before drinking.
+  - You must remain respectful and in control – you are still associated with the festival.
+• Being hungover or unfit for work is not acceptable.
+  - If you arrive unfit to work, you may be stood down and removed from the staff list and will be asked to leave without pay.
+• The possession or use of illegal substances on site will result in immediate removal and may be reported further.
 
-4. SAFETY, HEALTH & WELFARE
-Your safety and the safety of our guests are paramount. 
-- You must follow all instructions given by security personnel and health & safety officers.
-- Wear your provided high-visibility vests or staff t-shirts at all times while on shift.
-- Familiarize yourself with emergency exits, first-aid locations, and fire points.
-- Promptly report any serious hazards, suspicious packages, or minor incidents to your manager.
+3. Professionalism & Respect
+Professional behaviour towards sponsors, traders, attendees, venue staff, security and our internal team is the bare minimum.
+The following are strictly unacceptable and will result in the immediate termination of your association with FUME / BBQ Festivals Ltd:
+• Aggressive, threatening or confrontational behaviour
+• Harassment of any kind (verbal, physical, sexual or online)
+• Inappropriate comments, touching or jokes that could make anyone feel uncomfortable
+• Discriminatory language or behaviour (race, gender, sexuality, religion, disability, etc.)
+• Bullying or undermining colleagues, traders or venue staff
+If in doubt, don’t say it, don’t do it.
 
-5. HEALTH & ALLERGIES ACCURACY
-You must ensure that all details provided in your onboarding profile—including emergency contacts, serious allergies, and medical conditions impacting work—are accurate and up to date.
+4. After-Shift Conduct
+• Even off the clock, if you are in or around the venue, people will still see you as "FUME staff".
+• Keep behaviour respectful, avoid getting visibly drunk, and follow any instructions from security and management.
+• Any post-shift behaviour that reflects badly on the festival will be treated as an on-shift issue.
 
-6. CONFIDENTIALITY & SOCIAL MEDIA
-- Do not disclose confidential information regarding festival operations, artist schedules, VIP locations, or internal security details.
-- Avoid engaging with press or media regarding incidents; redirect any journalists to the official press office.
-- Be mindful when posting on social media; do not post photos of backstage areas, restricted zones, or artist dressing rooms.
+5. Reporting Issues
+If you see or experience anything that feels:
+• Unprofessional
+• Aggressive
+• Inappropriate
+• Or makes you or someone else feel uncomfortable
+
+You must report it immediately to the Event Directors: Dan Bentely, Dayne Metzner, or VE Manager Jasper Rayan Cater.
+• All reports will be taken seriously and handled as quickly and discreetly as possible.
+• There is zero tolerance for retaliation against anyone who raises a concern.
+
+6. Final Word
+We don’t see any of this as a big ask. It’s a very positive event and we ask that you respect and professionalism so everyone can work hard, have fun and be proud of the event.
+
+By working at FUME, you are agreeing to stick to this Code of Conduct for the duration of the event.
 `;
 
 export const CodeOfConduct: React.FC<CodeOfConductProps> = ({
