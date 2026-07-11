@@ -138,47 +138,47 @@ export default function App() {
           setGoogleUser(user);
           const email = user.email?.toLowerCase().trim();
 
-          // Dynamically load the newest staff profiles from Firestore to prevent stale local whitelists
-          let currentStaffList: StaffProfile[] = [];
+          // Dynamically load their specific staff profile directly from Firestore by their unique UID
+          let matched: StaffProfile | undefined = undefined;
           try {
-            const live = await getStaffProfilesFromFirestore();
-            if (live && live.length > 0) {
-              const hasAdmin = live.some(p => p.role === 'admin' || (p.email && ADMIN_EMAILS.includes(p.email.toLowerCase().trim())));
-              const merged = hasAdmin ? live : [INITIAL_STAFF.find(p => p.role === 'admin') || INITIAL_STAFF[0], ...live];
-              setStaffProfiles(merged);
-              currentStaffList = merged;
-            } else {
-              setStaffProfiles(INITIAL_STAFF);
-              currentStaffList = INITIAL_STAFF;
+            const { getStaffProfileFromFirestore } = await import('./utils/firestoreData');
+            const liveProfile = await getStaffProfileFromFirestore(user.uid);
+            if (liveProfile) {
+              matched = liveProfile;
+              // Sync to our local state list so other components can reference it
+              setStaffProfiles((prev) => {
+                const filtered = prev.filter((p) => p.id !== liveProfile.id);
+                return [liveProfile, ...filtered];
+              });
             }
           } catch (e) {
-            console.error("Auth state change: could not query Firestore 'users' whitelists:", e);
-            setStaffProfiles(INITIAL_STAFF);
-            currentStaffList = INITIAL_STAFF;
+            console.error("Auth state change: could not query Firestore profile for UID:", user.uid, e);
           }
 
           if (email && ADMIN_EMAILS.includes(email)) {
             setIsAuthenticated(true);
-            const adminProfile = currentStaffList.find(p => p.email.toLowerCase().trim() === email) || 
-                                 currentStaffList.find(p => p.role === 'admin') || 
+            const adminProfile = matched || 
+                                 staffProfiles.find(p => p.role === 'admin') || 
                                  INITIAL_STAFF.find(p => p.role === 'admin');
             if (adminProfile) {
               setCurrentProfileId(adminProfile.id);
             }
           } else {
             // Check if registered staff member
-            let matched = currentStaffList.find(p => p.email.toLowerCase().trim() === email);
-
             if (!matched && email) {
               // Fallback: check if they have a local profile in state (loaded from localStorage)
               const localProfile = staffProfiles.find(p => p.email.toLowerCase().trim() === email);
               if (localProfile) {
                 try {
-                  await saveStaffProfileToFirestore(localProfile);
+                  const { saveStaffProfileToFirestore, markInvitationRegisteredInFirestore } = await import('./utils/firestoreData');
+                  const syncedProfile = { ...localProfile, id: user.uid };
+                  await saveStaffProfileToFirestore(syncedProfile);
                   await markInvitationRegisteredInFirestore(localProfile.email);
-                  matched = localProfile;
-                  currentStaffList = [...currentStaffList, localProfile];
-                  setStaffProfiles(currentStaffList);
+                  matched = syncedProfile;
+                  setStaffProfiles((prev) => {
+                    const filtered = prev.filter((p) => p.id !== syncedProfile.id);
+                    return [syncedProfile, ...filtered];
+                  });
                 } catch (syncErr) {
                   console.error("Auth state change: failed to sync local profile to Firestore:", syncErr);
                 }
@@ -186,10 +186,19 @@ export default function App() {
             }
 
             if (matched) {
-              setIsAuthenticated(true);
-              setCurrentProfileId(matched.id);
+              // If they are in onboarding status, force them to complete onboarding
+              if (matched.status === 'onboarding') {
+                setIsAuthenticated(false);
+                setOnboardingEmail(email || '');
+              } else {
+                setIsAuthenticated(true);
+                setCurrentProfileId(matched.id);
+              }
+            } else if (email) {
+              // Authenticated in Auth, but no Firestore user profile. Direct to onboarding.
+              setIsAuthenticated(false);
+              setOnboardingEmail(email);
             } else {
-              // Not registered staff member!
               setIsAuthenticated(false);
               setCurrentProfileId('');
             }
@@ -1106,12 +1115,19 @@ export default function App() {
 
   // 16. Onboarding Completion
   const handleOnboardComplete = async (profileData: StaffProfile) => {
-    const updatedProfiles = [...staffProfiles, profileData];
+    const currentUid = auth.currentUser?.uid || profileData.id;
+    const finalProfile = {
+      ...profileData,
+      id: currentUid, // Ensure we use the Firebase Auth UID!
+      status: 'active' as const // Mark status as active now that onboarding is complete!
+    };
+
+    const updatedProfiles = [...staffProfiles.filter((p) => p.id !== finalProfile.id), finalProfile];
     setStaffProfiles(updatedProfiles);
     saveData('fest_staff', updatedProfiles);
 
     const updatedInvs = invitations.map((i) => {
-      if (i.email.toLowerCase() === profileData.email.toLowerCase()) {
+      if (i.email.toLowerCase() === finalProfile.email.toLowerCase()) {
         return { ...i, status: 'registered' as const };
       }
       return i;
@@ -1128,17 +1144,11 @@ export default function App() {
     }
 
     // Swapping to newly registered staff member's view
-    setCurrentProfileId(profileData.id);
+    setCurrentProfileId(finalProfile.id);
+    setIsAuthenticated(true);
 
-    // Immediately authenticate if Google user email matches the profile email
-    if (googleUser && googleUser.email?.toLowerCase().trim() === profileData.email.toLowerCase().trim()) {
-      setIsAuthenticated(true);
-    } else {
-      setIsAuthenticated(true); // Always authenticate them upon successful completion of the onboarding form they just authenticated for
-    }
-
-    await saveStaffProfileToFirestore(profileData);
-    await markInvitationRegisteredInFirestore(profileData.email);
+    await saveStaffProfileToFirestore(finalProfile);
+    await markInvitationRegisteredInFirestore(finalProfile.email);
   };
 
   // Invoices Mutators

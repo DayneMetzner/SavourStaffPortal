@@ -457,5 +457,19 @@ export async function getInvitationFromFirestore(email: string): Promise<Invitat
   }
 }
 
+export async function getStaffProfileFromFirestore(uid: string): Promise<StaffProfile | null> {
+  const path = `users/${uid}`;
+  try {
+    const docSnap = await getDoc(doc(db, 'users', uid));
+    if (docSnap.exists()) {
+      return docSnap.data() as StaffProfile;
+    }
+    return null;
+  } catch (error) {
+    // If permission or document doesn't exist, return null gracefully instead of breaking
+    return null;
+  }
+}
+
 
 

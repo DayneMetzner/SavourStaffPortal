@@ -38,6 +38,7 @@ export interface StaffProfile {
   codeOfConductSignedAt?: string;
   codeOfConductSignature?: string;
   role: 'admin' | 'staff';
+  status?: 'onboarding' | 'active';
   createdAt: string;
 }
 

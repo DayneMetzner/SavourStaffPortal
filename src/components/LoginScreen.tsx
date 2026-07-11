@@ -6,7 +6,7 @@
 import React, { useState, useEffect } from 'react';
 import { Shield, LogIn, Sparkles, AlertCircle, HelpCircle, Mail, ArrowRight, Lock, ArrowLeft, CheckCircle } from 'lucide-react';
 import { loginWithEmailPassword, registerWithEmailPassword, resetUserPassword } from '../utils/googleAuth';
-import { ADMIN_EMAILS } from '../types';
+import { ADMIN_EMAILS, StaffProfile } from '../types';
 
 interface LoginScreenProps {
   onLoginSuccess: (email: string, role: 'admin' | 'staff', googleToken?: string | null) => void;
@@ -45,42 +45,33 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
           setEmail(cleanEmail);
           setIsLoading(true);
 
-          let currentProfilesList = staffProfiles;
-          let currentInvitationsList = invitations;
-
-          try {
-            const { getStaffProfilesFromFirestore, getInvitationsFromFirestore } = await import('../utils/firestoreData');
-            const [liveProfiles, liveInvs] = await Promise.all([
-              getStaffProfilesFromFirestore(),
-              getInvitationsFromFirestore()
-            ]);
-
-            if (liveProfiles && liveProfiles.length > 0) {
-              currentProfilesList = liveProfiles;
-            }
-            if (liveInvs && liveInvs.length > 0) {
-              currentInvitationsList = liveInvs;
-            }
-          } catch (e) {
-            console.warn("Frictionless routing: failed to load database registries:", e);
+          if (ADMIN_EMAILS.includes(cleanEmail)) {
+            if (active) setStep('login');
+            return;
           }
+
+          // Check invitation directly by email safeId document path
+          const { getInvitationFromFirestore } = await import('../utils/firestoreData');
+          const inv = await getInvitationFromFirestore(cleanEmail);
 
           if (!active) return;
 
-          const isRegistered = currentProfilesList.some(
-            (p) => p.email.toLowerCase().trim() === cleanEmail
-          ) || ADMIN_EMAILS.includes(cleanEmail);
-
-          const isInvited = currentInvitationsList.some(
-            (i) => i.email.toLowerCase().trim() === cleanEmail
-          );
-
-          if (isRegistered) {
-            setStep('login');
-          } else if (isInvited) {
-            setStep('register');
+          if (inv) {
+            if (inv.status === 'registered') {
+              setStep('login');
+            } else {
+              setStep('register');
+            }
           } else {
-            setStep('not_found');
+            // Local fallback
+            const isRegisteredLocally = staffProfiles.some(
+              (p) => p.email.toLowerCase().trim() === cleanEmail
+            );
+            if (isRegisteredLocally) {
+              setStep('login');
+            } else {
+              setStep('not_found');
+            }
           }
         }
       } catch (e) {
@@ -94,7 +85,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
     return () => {
       active = false;
     };
-  }, [staffProfiles, invitations]);
+  }, [staffProfiles]);
 
   const handleCheckEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -109,44 +100,34 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
 
     setIsLoading(true);
     try {
-      // Fetch newest staff profiles and invitations from Firestore to prevent stale local checks
-      let currentProfilesList = staffProfiles;
-      let currentInvitationsList = invitations;
-
-      try {
-        const { getStaffProfilesFromFirestore, getInvitationsFromFirestore } = await import('../utils/firestoreData');
-        const [liveProfiles, liveInvs] = await Promise.all([
-          getStaffProfilesFromFirestore(),
-          getInvitationsFromFirestore()
-        ]);
-
-        if (liveProfiles && liveProfiles.length > 0) {
-          currentProfilesList = liveProfiles;
-        }
-        if (liveInvs && liveInvs.length > 0) {
-          currentInvitationsList = liveInvs;
-        }
-      } catch (e) {
-        console.warn("Check Email: failed to pull live whitelists, using local state:", e);
+      if (ADMIN_EMAILS.includes(emailClean)) {
+        setStep('login');
+        return;
       }
 
-      const isRegistered = currentProfilesList.some(
-        (p) => p.email.toLowerCase().trim() === emailClean
-      ) || ADMIN_EMAILS.includes(emailClean);
+      // Check invitation directly by email safeId document path
+      const { getInvitationFromFirestore } = await import('../utils/firestoreData');
+      const inv = await getInvitationFromFirestore(emailClean);
 
-      // Check invitations list
-      const isInvited = currentInvitationsList.some(
-        (i) => i.email.toLowerCase().trim() === emailClean
-      );
-
-      if (isRegistered) {
-        setStep('login');
-      } else if (isInvited) {
-        setStep('register');
+      if (inv) {
+        if (inv.status === 'registered') {
+          setStep('login');
+        } else {
+          setStep('register');
+        }
       } else {
-        setStep('not_found');
+        // Fallback checks
+        const isRegisteredLocally = staffProfiles.some(
+          (p) => p.email.toLowerCase().trim() === emailClean
+        );
+        if (isRegisteredLocally) {
+          setStep('login');
+        } else {
+          setStep('not_found');
+        }
       }
     } catch (err: any) {
+      console.error("Check email error:", err);
       setLoginError(err.message || 'Verification failed. Please try again.');
     } finally {
       setIsLoading(false);
@@ -169,51 +150,25 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
     try {
       const user = await loginWithEmailPassword(emailClean, pwd);
       
-      // Fetch newest staff profiles from Firestore to prevent stale local whitelists
-      let currentProfilesList = staffProfiles;
-      try {
-        const { getStaffProfilesFromFirestore } = await import('../utils/firestoreData');
-        const live = await getStaffProfilesFromFirestore();
-        if (live && live.length > 0) {
-          currentProfilesList = live;
-        }
-      } catch (dbErr) {
-        console.error("Login Screen: failed to pull live whitelists from Firestore:", dbErr);
-      }
+      // Fetch user profile document directly by their unique UID
+      const { getStaffProfileFromFirestore } = await import('../utils/firestoreData');
+      const profile = await getStaffProfileFromFirestore(user.uid);
 
-      // Check if this email is an admin
       if (ADMIN_EMAILS.includes(emailClean)) {
         onLoginSuccess(emailClean, 'admin', null);
         return;
       }
 
-      // Check if registered in staff profiles
-      let matchedProfile = currentProfilesList.find(
-        (p) => p.email.toLowerCase().trim() === emailClean
-      );
-
-      if (!matchedProfile) {
-        // Fallback: Check local staffProfiles prop (from localStorage)
-        const localProfile = staffProfiles.find(
-          (p) => p.email.toLowerCase().trim() === emailClean
-        );
-        if (localProfile) {
-          try {
-            const { saveStaffProfileToFirestore, markInvitationRegisteredInFirestore } = await import('../utils/firestoreData');
-            await saveStaffProfileToFirestore(localProfile);
-            await markInvitationRegisteredInFirestore(localProfile.email);
-            matchedProfile = localProfile;
-          } catch (syncErr) {
-            console.error("Login Screen: failed to sync local profile to Firestore:", syncErr);
-          }
-        }
-      }
-
-      if (matchedProfile) {
-        const role = matchedProfile.role || 'staff';
-        onLoginSuccess(emailClean, role, null);
+      if (profile) {
+        onLoginSuccess(emailClean, profile.role || 'staff', null);
       } else {
-        setStep('not_found');
+        // They are logged in, but don't have a profile document yet!
+        // Direct them to complete onboarding.
+        if (onStartOnboarding) {
+          onStartOnboarding(emailClean);
+        } else {
+          onLoginSuccess(emailClean, 'staff', null);
+        }
       }
     } catch (err: any) {
       console.error(err);
@@ -257,7 +212,44 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
       sessionStorage.setItem('savour_pending_invited_email', emailClean);
       
       // Register using email/password
-      await registerWithEmailPassword(emailClean, signUpPassword);
+      const user = await registerWithEmailPassword(emailClean, signUpPassword);
+
+      // Create a secure, immediate placeholder profile in Firestore users/{user.uid}
+      // This ensures that even if they close or refresh before completing onboarding,
+      // they are successfully marked as registered and their account exists in the database.
+      try {
+        const { saveStaffProfileToFirestore, markInvitationRegisteredInFirestore } = await import('../utils/firestoreData');
+        const placeholderProfile: StaffProfile = {
+          id: user.uid,
+          fullName: '',
+          preferredName: '',
+          email: emailClean,
+          phoneNumber: '',
+          pronouns: '',
+          address: '',
+          financialDetails: {
+            bankName: '',
+            nameOnAccount: '',
+            sortCode: '',
+            accountNumber: ''
+          },
+          emergencyContact: {
+            name: '',
+            number: '',
+            relationship: ''
+          },
+          medicalConditions: '',
+          seriousAllergies: '',
+          codeOfConductSigned: false,
+          role: 'staff',
+          status: 'onboarding',
+          createdAt: new Date().toISOString()
+        };
+        await saveStaffProfileToFirestore(placeholderProfile);
+        await markInvitationRegisteredInFirestore(emailClean);
+      } catch (dbErr) {
+        console.warn("Sign-Up: failed to commit immediate Firestore placeholder profile:", dbErr);
+      }
       
       // Proceed to onboarding using their registered email
       if (onStartOnboarding) {

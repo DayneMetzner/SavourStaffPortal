@@ -14,7 +14,9 @@ service cloud.firestore {
     // Check if user is an admin by checking their email
     function isAdmin(database) {
       return isSignedIn() && (
-        request.auth.token.email.lower() == 'dayne@savourfestival.com'
+        request.auth.token.email.lower() == 'dayne@savourfestival.com' ||
+        request.auth.token.email.lower() == 'alex@savourfestival.com' ||
+        request.auth.token.email.lower() == 'dan@savourfestival.com'
       );
     }
 
