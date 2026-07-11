@@ -14,7 +14,8 @@ import {
   User,
   signOut,
   signInWithEmailAndPassword,
-  createUserWithEmailAndPassword
+  createUserWithEmailAndPassword,
+  sendPasswordResetEmail
 } from 'firebase/auth';
 import firebaseConfig from '../../firebase-applet-config.json';
 
@@ -329,6 +330,16 @@ export const registerWithEmailPassword = async (email: string, password: string)
     return result.user;
   } catch (error: any) {
     console.error('Email Sign-Up Error:', error);
+    throw error;
+  }
+};
+
+// Reset password
+export const resetUserPassword = async (email: string): Promise<void> => {
+  try {
+    await sendPasswordResetEmail(auth, email);
+  } catch (error: any) {
+    console.error('Password Reset Error:', error);
     throw error;
   }
 };

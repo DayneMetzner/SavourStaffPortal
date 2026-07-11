@@ -955,9 +955,9 @@ export default function App() {
     setInvitations(updated);
     saveData('fest_invitations', updated);
 
-    // Calculate current URL for testing convenience
+    // Calculate current URL with prefilled email for frictionless onboarding
     const currentURL = window.location.origin + window.location.pathname;
-    const onboardingLink = currentURL;
+    const onboardingLink = `${currentURL}?email=${encodeURIComponent(cleanEmail)}`;
     const emailSubject = 'Join Savour Food Festival Staff Team - Onboarding Link';
     const plainTextBody = `Hi there!\n\nYou have been invited to register as a staff member on the Savour Food Festival Portal.\n\nPlease click the link below to visit the portal, click "Create Staff Account / Sign Up", and enter your email address to set up your billing details, emergency contact, medical declarations, and sign the official Code of Conduct:\n\n${onboardingLink}\n\nBest regards,\nSavour Operations Team`;
 
@@ -1044,7 +1044,7 @@ export default function App() {
       return;
     }
     const currentURL = window.location.origin + window.location.pathname;
-    const onboardingLink = currentURL;
+    const onboardingLink = `${currentURL}?email=${encodeURIComponent(cleanEmail)}`;
     const emailSubject = 'Join Savour Food Festival Staff Team - Onboarding Link';
     const plainTextBody = `Hi there!\n\nYou have been invited to register as a staff member on the Savour Food Festival Portal.\n\nPlease click the link below to visit the portal, click "Create Staff Account / Sign Up", and enter your email address to set up your billing details, emergency contact, medical declarations, and sign the official Code of Conduct:\n\n${onboardingLink}\n\nBest regards,\nSavour Operations Team`;
 
