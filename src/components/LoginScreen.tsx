@@ -51,8 +51,13 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
           }
 
           // Check invitation directly by email safeId document path
-          const { getInvitationFromFirestore } = await import('../utils/firestoreData');
-          const inv = await getInvitationFromFirestore(cleanEmail);
+          let inv = null;
+          try {
+            const { getInvitationFromFirestore } = await import('../utils/firestoreData');
+            inv = await getInvitationFromFirestore(cleanEmail);
+          } catch (dbErr) {
+            console.warn("Frictionless routing: failed to query Firestore for invitation:", dbErr);
+          }
 
           if (!active) return;
 
@@ -106,8 +111,13 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
       }
 
       // Check invitation directly by email safeId document path
-      const { getInvitationFromFirestore } = await import('../utils/firestoreData');
-      const inv = await getInvitationFromFirestore(emailClean);
+      let inv = null;
+      try {
+        const { getInvitationFromFirestore } = await import('../utils/firestoreData');
+        inv = await getInvitationFromFirestore(emailClean);
+      } catch (dbErr) {
+        console.warn("Check email: failed to query Firestore for invitation:", dbErr);
+      }
 
       if (inv) {
         if (inv.status === 'registered') {
@@ -580,6 +590,40 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
                 <p>
                   Please make sure you are entering the exact email address where you received your invitation. If you are a new staff member, your administrator must invite you via the management console before you can register.
                 </p>
+              </div>
+
+              {/* Secure bypass escape hatches */}
+              <div className="pt-3 border-t border-slate-100 space-y-2">
+                <div className="text-center">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                    Database Sync Delay? Bypass Check
+                  </p>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setStep('login');
+                      setLoginError(null);
+                      setMessage(null);
+                    }}
+                    className="py-2.5 border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold text-xs rounded-xl transition-all cursor-pointer text-center"
+                  >
+                    Log In anyway
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setStep('register');
+                      setLoginError(null);
+                      setMessage(null);
+                    }}
+                    className="py-2.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-xs rounded-xl transition-all cursor-pointer text-center"
+                  >
+                    Register anyway
+                  </button>
+                </div>
               </div>
 
               <button
